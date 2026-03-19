@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="问题背景# 在用户程序init中调用系统函数sys_malloc会触发系统异常
+为什么用户程序可以调用到系统函数。 因为该项目中用户程序的段描述符寻址空间是0-4GB并且内核页表属性设置是用户级别。 -内核页表属性设置为用户基本是因Init进程是写在内核代码空间中的。为了Init能够正常运行 gdb调试运行过程# -sys_malloc(gdb) n367 mem_pool = &amp;kernel_pool;(gdb) n368 descs = k_block_descs;(gdb) n379 if (!(size &gt; 0 &amp;&amp; size &lt; pool_size))(gdb) n385 lock_acquire(&amp;mem_pool-&gt;lock);(gdb) nProgram stopped.0xc0001ebb in intr0x0dentry ()- lock_acquire()- sema_down(&amp;plock-&gt;semaphore); //对信号量进行down操作sema_down (psema=0xc00124d4 &lt;kernel_pool&#43;20&gt;) at thread/sync.c:2222 enum intr_status old_status = intr_disable(); //对于信号量的操作是必须关中断的(gdb) s- intr_disable () at kernel/interrupt.c:171171 old_status = INTR_ON;(gdb) s172 asm volatile(&#34;cli&#34; : : : &#34;memory&#34;); // 关中断,cli指令将IF位置0(gdb) s0xc0001ebb in intr0x0dentry () //系统异常中断原因分析# cli 指令的特权级限制 cli（Clear Interrupt Flag）指令用于清除中断标志位，从而禁止可屏蔽中断。在 x86 架构中，cli 是一条特权指令，这意味着它只能在特权级 0（内核模式）下执行。如果在特权级 3（用户模式）下尝试执行该指令，CPU 会检测到这种特权级违规，并触发通用保护故障（中断向量 13）。 代码逻辑错误 可能代码本意是在内核模式下执行该指令，但由于某些原因（如任务切换、中断处理不当等），程序在用户模式下执行到了这条指令，从而引发错误。 ">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/gdb%E8%B0%83%E8%AF%95/%E6%8C%82%E6%9C%BA%E8%B0%83%E8%AF%95/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="挂机调试">
+  <meta property="og:description" content="问题背景# 在用户程序init中调用系统函数sys_malloc会触发系统异常
+为什么用户程序可以调用到系统函数。 因为该项目中用户程序的段描述符寻址空间是0-4GB并且内核页表属性设置是用户级别。 -内核页表属性设置为用户基本是因Init进程是写在内核代码空间中的。为了Init能够正常运行 gdb调试运行过程# -sys_malloc(gdb) n367 mem_pool = &amp;kernel_pool;(gdb) n368 descs = k_block_descs;(gdb) n379 if (!(size &gt; 0 &amp;&amp; size &lt; pool_size))(gdb) n385 lock_acquire(&amp;mem_pool-&gt;lock);(gdb) nProgram stopped.0xc0001ebb in intr0x0dentry ()- lock_acquire()- sema_down(&amp;plock-&gt;semaphore); //对信号量进行down操作sema_down (psema=0xc00124d4 &lt;kernel_pool&#43;20&gt;) at thread/sync.c:2222 enum intr_status old_status = intr_disable(); //对于信号量的操作是必须关中断的(gdb) s- intr_disable () at kernel/interrupt.c:171171 old_status = INTR_ON;(gdb) s172 asm volatile(&#34;cli&#34; : : : &#34;memory&#34;); // 关中断,cli指令将IF位置0(gdb) s0xc0001ebb in intr0x0dentry () //系统异常中断原因分析# cli 指令的特权级限制 cli（Clear Interrupt Flag）指令用于清除中断标志位，从而禁止可屏蔽中断。在 x86 架构中，cli 是一条特权指令，这意味着它只能在特权级 0（内核模式）下执行。如果在特权级 3（用户模式）下尝试执行该指令，CPU 会检测到这种特权级违规，并触发通用保护故障（中断向量 13）。 代码逻辑错误 可能代码本意是在内核模式下执行该指令，但由于某些原因（如任务切换、中断处理不当等），程序在用户模式下执行到了这条指令，从而引发错误。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="挂机调试">
+  <meta itemprop="description" content="问题背景# 在用户程序init中调用系统函数sys_malloc会触发系统异常
+为什么用户程序可以调用到系统函数。 因为该项目中用户程序的段描述符寻址空间是0-4GB并且内核页表属性设置是用户级别。 -内核页表属性设置为用户基本是因Init进程是写在内核代码空间中的。为了Init能够正常运行 gdb调试运行过程# -sys_malloc(gdb) n367 mem_pool = &amp;kernel_pool;(gdb) n368 descs = k_block_descs;(gdb) n379 if (!(size &gt; 0 &amp;&amp; size &lt; pool_size))(gdb) n385 lock_acquire(&amp;mem_pool-&gt;lock);(gdb) nProgram stopped.0xc0001ebb in intr0x0dentry ()- lock_acquire()- sema_down(&amp;plock-&gt;semaphore); //对信号量进行down操作sema_down (psema=0xc00124d4 &lt;kernel_pool&#43;20&gt;) at thread/sync.c:2222 enum intr_status old_status = intr_disable(); //对于信号量的操作是必须关中断的(gdb) s- intr_disable () at kernel/interrupt.c:171171 old_status = INTR_ON;(gdb) s172 asm volatile(&#34;cli&#34; : : : &#34;memory&#34;); // 关中断,cli指令将IF位置0(gdb) s0xc0001ebb in intr0x0dentry () //系统异常中断原因分析# cli 指令的特权级限制 cli（Clear Interrupt Flag）指令用于清除中断标志位，从而禁止可屏蔽中断。在 x86 架构中，cli 是一条特权指令，这意味着它只能在特权级 0（内核模式）下执行。如果在特权级 3（用户模式）下尝试执行该指令，CPU 会检测到这种特权级违规，并触发通用保护故障（中断向量 13）。 代码逻辑错误 可能代码本意是在内核模式下执行该指令，但由于某些原因（如任务切换、中断处理不当等），程序在用户模式下执行到了这条指令，从而引发错误。">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="103">
+
+<title>挂机调试 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/gdb%E8%B0%83%E8%AF%95/%E6%8C%82%E6%9C%BA%E8%B0%83%E8%AF%95/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>挂机调试</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#问题背景">问题背景</a></li>
+    <li><a href="#gdb调试运行过程">gdb调试运行过程</a></li>
+    <li><a href="#原因分析">原因分析</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>挂机调试</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="问题背景">问题背景<a class="anchor" href="#%e9%97%ae%e9%a2%98%e8%83%8c%e6%99%af">#</a></h1>
+<p>在用户程序init中调用系统函数sys_malloc会触发系统异常</p>
+<ul>
+<li>为什么用户程序可以调用到系统函数。
+<ul>
+<li>因为该项目中用户程序的段描述符寻址空间是0-4GB并且内核页表属性设置是用户级别。
+-内核页表属性设置为用户基本是因Init进程是写在内核代码空间中的。为了Init能够正常运行</li>
+</ul>
+</li>
+</ul>
+<h1 id="gdb调试运行过程">gdb调试运行过程<a class="anchor" href="#gdb%e8%b0%83%e8%af%95%e8%bf%90%e8%a1%8c%e8%bf%87%e7%a8%8b">#</a></h1>
+<pre><code>-sys_malloc
+    (gdb) n
+    367             mem_pool = &amp;kernel_pool;
+    (gdb) n
+    368             descs = k_block_descs;
+    (gdb) n
+    379         if (!(size &gt; 0 &amp;&amp; size &lt; pool_size))
+    (gdb) n
+    385         lock_acquire(&amp;mem_pool-&gt;lock);
+    (gdb) n
+    Program stopped.
+    0xc0001ebb in intr0x0dentry ()
+    - lock_acquire()
+
+        - sema_down(&amp;plock-&gt;semaphore);    //对信号量进行down操作
+
+            sema_down (psema=0xc00124d4 &lt;kernel_pool+20&gt;) at thread/sync.c:22
+            22         enum intr_status old_status = intr_disable();         //对于信号量的操作是必须关中断的
+            (gdb) s
+
+
+            - intr_disable () at kernel/interrupt.c:171
+
+                171           old_status = INTR_ON;
+                (gdb) s
+                172           asm volatile(&quot;cli&quot; : : : &quot;memory&quot;); // 关中断,cli指令将IF位置0
+                (gdb) s
+                0xc0001ebb in intr0x0dentry ()  //系统异常中断
+</code></pre>
+<h1 id="原因分析">原因分析<a class="anchor" href="#%e5%8e%9f%e5%9b%a0%e5%88%86%e6%9e%90">#</a></h1>
+<ol>
+<li>cli 指令的特权级限制
+cli（Clear Interrupt Flag）指令用于清除中断标志位，从而禁止可屏蔽中断。在 x86 架构中，cli 是一条特权指令，这意味着它只能在特权级 0（内核模式）下执行。如果在特权级 3（用户模式）下尝试执行该指令，CPU 会检测到这种特权级违规，并触发通用保护故障（中断向量 13）。</li>
+<li>代码逻辑错误
+可能代码本意是在内核模式下执行该指令，但由于某些原因（如任务切换、中断处理不当等），程序在用户模式下执行到了这条指令，从而引发错误。</li>
+</ol>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/gdb%E8%B0%83%E8%AF%95/gdb%E8%B0%83%E8%AF%95%E5%91%BD%E4%BB%A4/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>gdb调试命令</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#问题背景">问题背景</a></li>
+    <li><a href="#gdb调试运行过程">gdb调试运行过程</a></li>
+    <li><a href="#原因分析">原因分析</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

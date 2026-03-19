@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="用户进程直接调用内核函数# 代码里面初始化了一个用户进制，用户进制的段描述符权限是3，范围是4GB。覆盖到了内核空间。看起来可以直接调用内核函数，不通过中断门的形式。实测不行，系统报错触发 #GP 异常（General Protection Fault）。 通过gdb调试。看直接调用内核函数那句反汇编对应的汇编指令是call xxxxxxxxxx.，看起来没有发生段切换，也就是CS没有变化。不知道怎么涉及到特权级检测不过了
+在gdb调试案例里面说明 是函数内部的一条汇编指令引起，此汇编只运行高特权级运行。 一般说明# -用户程序（Ring 3）若试图访问内核空间的内存页（如 0xffff0000），MMU 发现页表项中标记为 Supervisor Only（内核权限），立即触发 通用保护故障（General Protection Fault）
+特殊说明# 内核代码所在页设置为用户权限，因为init进程 -init是用户进程，特权级别是3，但是代码处于内核地址空间 proc_stack-&gt;gs = 0;	//用户态根本用不上这个，所以置为0（gs我们一般用于访问显存段，这个让内核态来访问） 数据段和代码段的区别# 平坦模式下没有区别 console_put_str 函数在哪里可以用# 需要操作外设，用在内核代码 需要访问显存用到了gs段。gs段在内核代码中有段描述符。用户代码中没有，无法使用 什么时候必须要通过系统调用，才能使用相关函数# 用户空间初始化了用户空间的代码段和数据段描述符及其描述符选择子，等级权限都是3. 没有初始化gs段。因此和显存相关的函数无法直接使用，需要通过系统调用。其他函数理论能行。 系统调用过程# https://blog.csdn.net/astrotycoon/article/details/16344915?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_utm_term~default-5-16344915-blog-137240912.235^v43^pc_blog_bottom_relevance_base2&amp;spm=1001.2101.3001.4242.4&amp;utm_relevant_index=7
+内核进程，内核线程，用户进程，用户线程区分。# 代码中只实现了用户进程的代码，创建的进程都是用户进程。 用户进程的CS段选择子指向用户段描述符，权限为3 在内核代码中创建的线程是内核线程，用户进程中创建的线程是用户线程。 内核没有进程只有线程。 内核线程和用户进程/线程的区分# 用户进程，运行在用户空间，通过系统调用和内核交互，没有直接访问硬件和内核内存的权限。 内核线程，运行在内核空间。直接操作硬件和管理资源。 用户进程创建流程,启动流程# 创建一个内核线程，由线程函数创建用户进程 线程启动进入start_process函数,在函数填写中断栈参数，通过内联汇编中断返回，跳转到用户进程。 proc_stack-&gt;eip = function;	//设定要执行的函数（进程）的地址 进程切换流程# 时钟中断 中断处理函数 static void intr_timer_handler(void) 调度器 schedule(); 弹出第一个就绪线程 激活进程页目录 用于更新TSS中的esp0的值，用于进程被中断时候保存上下文 switch_to 启动线程，由线程函数启动进程。 进程运行 子进程结束流程# 父进程执行sys_wait检测子进程状态，状态是挂起时候结束子进程。 子进程执行完调用sys_exit将自己挂起。 ret 语句跳到c语言函数，对应的汇编流程# 程序功能扩增# shll命令添加实现# 创建文件 写文件 删除文件 汇编和c混合编程# project/c5/c/kernel/main.c 打印函數# put_str# 定义在print.S，声明在print.h console_put_str# 加锁，解决线程竞争问题 定义在console.c，声明在console.h printk# 内核使用的格式化输出函数 定义在stdio-kernel.c，声明在stdio-kernel.h printf# 用户使用的格式化输出函数 定义在stdio.c，声明在stdio.h ">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E9%81%97%E7%95%99%E9%97%AE%E9%A2%98/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="用户进程直接调用内核函数# 代码里面初始化了一个用户进制，用户进制的段描述符权限是3，范围是4GB。覆盖到了内核空间。看起来可以直接调用内核函数，不通过中断门的形式。实测不行，系统报错触发 #GP 异常（General Protection Fault）。 通过gdb调试。看直接调用内核函数那句反汇编对应的汇编指令是call xxxxxxxxxx.，看起来没有发生段切换，也就是CS没有变化。不知道怎么涉及到特权级检测不过了
+在gdb调试案例里面说明 是函数内部的一条汇编指令引起，此汇编只运行高特权级运行。 一般说明# -用户程序（Ring 3）若试图访问内核空间的内存页（如 0xffff0000），MMU 发现页表项中标记为 Supervisor Only（内核权限），立即触发 通用保护故障（General Protection Fault）
+特殊说明# 内核代码所在页设置为用户权限，因为init进程 -init是用户进程，特权级别是3，但是代码处于内核地址空间 proc_stack-&gt;gs = 0;	//用户态根本用不上这个，所以置为0（gs我们一般用于访问显存段，这个让内核态来访问） 数据段和代码段的区别# 平坦模式下没有区别 console_put_str 函数在哪里可以用# 需要操作外设，用在内核代码 需要访问显存用到了gs段。gs段在内核代码中有段描述符。用户代码中没有，无法使用 什么时候必须要通过系统调用，才能使用相关函数# 用户空间初始化了用户空间的代码段和数据段描述符及其描述符选择子，等级权限都是3. 没有初始化gs段。因此和显存相关的函数无法直接使用，需要通过系统调用。其他函数理论能行。 系统调用过程# https://blog.csdn.net/astrotycoon/article/details/16344915?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_utm_term~default-5-16344915-blog-137240912.235^v43^pc_blog_bottom_relevance_base2&amp;spm=1001.2101.3001.4242.4&amp;utm_relevant_index=7
+内核进程，内核线程，用户进程，用户线程区分。# 代码中只实现了用户进程的代码，创建的进程都是用户进程。 用户进程的CS段选择子指向用户段描述符，权限为3 在内核代码中创建的线程是内核线程，用户进程中创建的线程是用户线程。 内核没有进程只有线程。 内核线程和用户进程/线程的区分# 用户进程，运行在用户空间，通过系统调用和内核交互，没有直接访问硬件和内核内存的权限。 内核线程，运行在内核空间。直接操作硬件和管理资源。 用户进程创建流程,启动流程# 创建一个内核线程，由线程函数创建用户进程 线程启动进入start_process函数,在函数填写中断栈参数，通过内联汇编中断返回，跳转到用户进程。 proc_stack-&gt;eip = function;	//设定要执行的函数（进程）的地址 进程切换流程# 时钟中断 中断处理函数 static void intr_timer_handler(void) 调度器 schedule(); 弹出第一个就绪线程 激活进程页目录 用于更新TSS中的esp0的值，用于进程被中断时候保存上下文 switch_to 启动线程，由线程函数启动进程。 进程运行 子进程结束流程# 父进程执行sys_wait检测子进程状态，状态是挂起时候结束子进程。 子进程执行完调用sys_exit将自己挂起。 ret 语句跳到c语言函数，对应的汇编流程# 程序功能扩增# shll命令添加实现# 创建文件 写文件 删除文件 汇编和c混合编程# project/c5/c/kernel/main.c 打印函數# put_str# 定义在print.S，声明在print.h console_put_str# 加锁，解决线程竞争问题 定义在console.c，声明在console.h printk# 内核使用的格式化输出函数 定义在stdio-kernel.c，声明在stdio-kernel.h printf# 用户使用的格式化输出函数 定义在stdio.c，声明在stdio.h">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="用户进程直接调用内核函数# 代码里面初始化了一个用户进制，用户进制的段描述符权限是3，范围是4GB。覆盖到了内核空间。看起来可以直接调用内核函数，不通过中断门的形式。实测不行，系统报错触发 #GP 异常（General Protection Fault）。 通过gdb调试。看直接调用内核函数那句反汇编对应的汇编指令是call xxxxxxxxxx.，看起来没有发生段切换，也就是CS没有变化。不知道怎么涉及到特权级检测不过了
+在gdb调试案例里面说明 是函数内部的一条汇编指令引起，此汇编只运行高特权级运行。 一般说明# -用户程序（Ring 3）若试图访问内核空间的内存页（如 0xffff0000），MMU 发现页表项中标记为 Supervisor Only（内核权限），立即触发 通用保护故障（General Protection Fault）
+特殊说明# 内核代码所在页设置为用户权限，因为init进程 -init是用户进程，特权级别是3，但是代码处于内核地址空间 proc_stack-&gt;gs = 0;	//用户态根本用不上这个，所以置为0（gs我们一般用于访问显存段，这个让内核态来访问） 数据段和代码段的区别# 平坦模式下没有区别 console_put_str 函数在哪里可以用# 需要操作外设，用在内核代码 需要访问显存用到了gs段。gs段在内核代码中有段描述符。用户代码中没有，无法使用 什么时候必须要通过系统调用，才能使用相关函数# 用户空间初始化了用户空间的代码段和数据段描述符及其描述符选择子，等级权限都是3. 没有初始化gs段。因此和显存相关的函数无法直接使用，需要通过系统调用。其他函数理论能行。 系统调用过程# https://blog.csdn.net/astrotycoon/article/details/16344915?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_utm_term~default-5-16344915-blog-137240912.235^v43^pc_blog_bottom_relevance_base2&amp;spm=1001.2101.3001.4242.4&amp;utm_relevant_index=7
+内核进程，内核线程，用户进程，用户线程区分。# 代码中只实现了用户进程的代码，创建的进程都是用户进程。 用户进程的CS段选择子指向用户段描述符，权限为3 在内核代码中创建的线程是内核线程，用户进程中创建的线程是用户线程。 内核没有进程只有线程。 内核线程和用户进程/线程的区分# 用户进程，运行在用户空间，通过系统调用和内核交互，没有直接访问硬件和内核内存的权限。 内核线程，运行在内核空间。直接操作硬件和管理资源。 用户进程创建流程,启动流程# 创建一个内核线程，由线程函数创建用户进程 线程启动进入start_process函数,在函数填写中断栈参数，通过内联汇编中断返回，跳转到用户进程。 proc_stack-&gt;eip = function;	//设定要执行的函数（进程）的地址 进程切换流程# 时钟中断 中断处理函数 static void intr_timer_handler(void) 调度器 schedule(); 弹出第一个就绪线程 激活进程页目录 用于更新TSS中的esp0的值，用于进程被中断时候保存上下文 switch_to 启动线程，由线程函数启动进程。 进程运行 子进程结束流程# 父进程执行sys_wait检测子进程状态，状态是挂起时候结束子进程。 子进程执行完调用sys_exit将自己挂起。 ret 语句跳到c语言函数，对应的汇编流程# 程序功能扩增# shll命令添加实现# 创建文件 写文件 删除文件 汇编和c混合编程# project/c5/c/kernel/main.c 打印函數# put_str# 定义在print.S，声明在print.h console_put_str# 加锁，解决线程竞争问题 定义在console.c，声明在console.h printk# 内核使用的格式化输出函数 定义在stdio-kernel.c，声明在stdio-kernel.h printf# 用户使用的格式化输出函数 定义在stdio.c，声明在stdio.h">
+  <meta itemprop="wordCount" content="91">
+
+<title>遗留问题 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E9%81%97%E7%95%99%E9%97%AE%E9%A2%98/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>遗留问题</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#用户进程直接调用内核函数">用户进程直接调用内核函数</a></li>
+    <li><a href="#一般说明">一般说明</a></li>
+    <li><a href="#特殊说明">特殊说明</a></li>
+    <li><a href="#数据段和代码段的区别">数据段和代码段的区别</a></li>
+    <li><a href="#console_put_str-函数在哪里可以用">console_put_str 函数在哪里可以用</a></li>
+    <li><a href="#什么时候必须要通过系统调用才能使用相关函数">什么时候必须要通过系统调用，才能使用相关函数</a></li>
+    <li><a href="#系统调用过程">系统调用过程</a></li>
+    <li><a href="#内核进程内核线程用户进程用户线程区分">内核进程，内核线程，用户进程，用户线程区分。</a>
+      <ul>
+        <li><a href="#内核线程和用户进程线程的区分">内核线程和用户进程/线程的区分</a></li>
+      </ul>
+    </li>
+    <li><a href="#用户进程创建流程启动流程">用户进程创建流程,启动流程</a></li>
+    <li><a href="#进程切换流程">进程切换流程</a>
+      <ul>
+        <li><a href="#子进程结束流程">子进程结束流程</a></li>
+      </ul>
+    </li>
+    <li><a href="#ret-语句跳到c语言函数对应的汇编流程">ret 语句跳到c语言函数，对应的汇编流程</a></li>
+    <li><a href="#程序功能扩增">程序功能扩增</a>
+      <ul>
+        <li><a href="#shll命令添加实现">shll命令添加实现</a></li>
+      </ul>
+    </li>
+    <li><a href="#汇编和c混合编程">汇编和c混合编程</a></li>
+    <li><a href="#打印函數">打印函數</a>
+      <ul>
+        <li><a href="#put_str">put_str</a></li>
+        <li><a href="#console_put_str">console_put_str</a></li>
+        <li><a href="#printk">printk</a></li>
+        <li><a href="#printf">printf</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>遗留问题</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="用户进程直接调用内核函数">用户进程直接调用内核函数<a class="anchor" href="#%e7%94%a8%e6%88%b7%e8%bf%9b%e7%a8%8b%e7%9b%b4%e6%8e%a5%e8%b0%83%e7%94%a8%e5%86%85%e6%a0%b8%e5%87%bd%e6%95%b0">#</a></h1>
+<blockquote class='book-hint '>
+<p>代码里面初始化了一个用户进制，用户进制的段描述符权限是3，范围是4GB。覆盖到了内核空间。看起来可以直接调用内核函数，不通过中断门的形式。实测不行，系统报错触发 #GP 异常（General Protection Fault）。
+通过gdb调试。看直接调用内核函数那句反汇编对应的汇编指令是call xxxxxxxxxx.，看起来没有发生段切换，也就是CS没有变化。不知道怎么涉及到特权级检测不过了</p>
+</blockquote><ul>
+<li>在gdb调试案例里面说明</li>
+<li>是函数内部的一条汇编指令引起，此汇编只运行高特权级运行。</li>
+</ul>
+<h1 id="一般说明">一般说明<a class="anchor" href="#%e4%b8%80%e8%88%ac%e8%af%b4%e6%98%8e">#</a></h1>
+<p>-用户程序（Ring 3）若试图访问内核空间的内存页（如 0xffff0000），MMU 发现页表项中标记为 Supervisor Only（内核权限），立即触发 通用保护故障（General Protection Fault）</p>
+<h1 id="特殊说明">特殊说明<a class="anchor" href="#%e7%89%b9%e6%ae%8a%e8%af%b4%e6%98%8e">#</a></h1>
+<ul>
+<li>内核代码所在页设置为用户权限，因为init进程
+-init是用户进程，特权级别是3，但是代码处于内核地址空间</li>
+<li>proc_stack-&gt;gs = 0;		 //用户态根本用不上这个，所以置为0（gs我们一般用于访问显存段，这个让内核态来访问）</li>
+</ul>
+<h1 id="数据段和代码段的区别">数据段和代码段的区别<a class="anchor" href="#%e6%95%b0%e6%8d%ae%e6%ae%b5%e5%92%8c%e4%bb%a3%e7%a0%81%e6%ae%b5%e7%9a%84%e5%8c%ba%e5%88%ab">#</a></h1>
+<ul>
+<li>平坦模式下没有区别</li>
+</ul>
+<h1 id="console_put_str-函数在哪里可以用">console_put_str 函数在哪里可以用<a class="anchor" href="#console_put_str-%e5%87%bd%e6%95%b0%e5%9c%a8%e5%93%aa%e9%87%8c%e5%8f%af%e4%bb%a5%e7%94%a8">#</a></h1>
+<ul>
+<li>需要操作外设，用在内核代码</li>
+<li>需要访问显存用到了gs段。gs段在内核代码中有段描述符。用户代码中没有，无法使用</li>
+</ul>
+<h1 id="什么时候必须要通过系统调用才能使用相关函数">什么时候必须要通过系统调用，才能使用相关函数<a class="anchor" href="#%e4%bb%80%e4%b9%88%e6%97%b6%e5%80%99%e5%bf%85%e9%a1%bb%e8%a6%81%e9%80%9a%e8%bf%87%e7%b3%bb%e7%bb%9f%e8%b0%83%e7%94%a8%e6%89%8d%e8%83%bd%e4%bd%bf%e7%94%a8%e7%9b%b8%e5%85%b3%e5%87%bd%e6%95%b0">#</a></h1>
+<ul>
+<li>用户空间初始化了用户空间的代码段和数据段描述符及其描述符选择子，等级权限都是3.</li>
+<li>没有初始化gs段。因此和显存相关的函数无法直接使用，需要通过系统调用。其他函数理论能行。</li>
+</ul>
+<h1 id="系统调用过程">系统调用过程<a class="anchor" href="#%e7%b3%bb%e7%bb%9f%e8%b0%83%e7%94%a8%e8%bf%87%e7%a8%8b">#</a></h1>
+<p><a href="https://blog.csdn.net/astrotycoon/article/details/16344915?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_utm_term~default-5-16344915-blog-137240912.235%5ev43%5epc_blog_bottom_relevance_base2&amp;spm=1001.2101.3001.4242.4&amp;utm_relevant_index=7">https://blog.csdn.net/astrotycoon/article/details/16344915?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_utm_term~default-5-16344915-blog-137240912.235^v43^pc_blog_bottom_relevance_base2&spm=1001.2101.3001.4242.4&utm_relevant_index=7</a></p>
+<h1 id="内核进程内核线程用户进程用户线程区分">内核进程，内核线程，用户进程，用户线程区分。<a class="anchor" href="#%e5%86%85%e6%a0%b8%e8%bf%9b%e7%a8%8b%e5%86%85%e6%a0%b8%e7%ba%bf%e7%a8%8b%e7%94%a8%e6%88%b7%e8%bf%9b%e7%a8%8b%e7%94%a8%e6%88%b7%e7%ba%bf%e7%a8%8b%e5%8c%ba%e5%88%86">#</a></h1>
+<ul>
+<li>代码中只实现了用户进程的代码，创建的进程都是用户进程。
+<ul>
+<li>用户进程的CS段选择子指向用户段描述符，权限为3</li>
+</ul>
+</li>
+<li>在内核代码中创建的线程是内核线程，用户进程中创建的线程是用户线程。</li>
+<li>内核没有进程只有线程。</li>
+</ul>
+<h2 id="内核线程和用户进程线程的区分">内核线程和用户进程/线程的区分<a class="anchor" href="#%e5%86%85%e6%a0%b8%e7%ba%bf%e7%a8%8b%e5%92%8c%e7%94%a8%e6%88%b7%e8%bf%9b%e7%a8%8b%e7%ba%bf%e7%a8%8b%e7%9a%84%e5%8c%ba%e5%88%86">#</a></h2>
+<ul>
+<li>用户进程，运行在用户空间，通过系统调用和内核交互，没有直接访问硬件和内核内存的权限。</li>
+<li>内核线程，运行在内核空间。直接操作硬件和管理资源。</li>
+</ul>
+<h1 id="用户进程创建流程启动流程">用户进程创建流程,启动流程<a class="anchor" href="#%e7%94%a8%e6%88%b7%e8%bf%9b%e7%a8%8b%e5%88%9b%e5%bb%ba%e6%b5%81%e7%a8%8b%e5%90%af%e5%8a%a8%e6%b5%81%e7%a8%8b">#</a></h1>
+<ul>
+<li>创建一个内核线程，由线程函数创建用户进程</li>
+<li>线程启动进入start_process函数,在函数填写中断栈参数，通过内联汇编中断返回，跳转到用户进程。
+<ul>
+<li>proc_stack-&gt;eip = function;	 //设定要执行的函数（进程）的地址</li>
+</ul>
+</li>
+</ul>
+<h1 id="进程切换流程">进程切换流程<a class="anchor" href="#%e8%bf%9b%e7%a8%8b%e5%88%87%e6%8d%a2%e6%b5%81%e7%a8%8b">#</a></h1>
+<ul>
+<li>时钟中断
+<ul>
+<li>中断处理函数  static void intr_timer_handler(void)
+<ul>
+<li>调度器 schedule();</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>弹出第一个就绪线程</li>
+<li>激活进程页目录</li>
+<li>用于更新TSS中的esp0的值，用于进程被中断时候保存上下文</li>
+<li>switch_to
+<ul>
+<li>启动线程，由线程函数启动进程。</li>
+</ul>
+</li>
+<li>进程运行</li>
+</ul>
+<h2 id="子进程结束流程">子进程结束流程<a class="anchor" href="#%e5%ad%90%e8%bf%9b%e7%a8%8b%e7%bb%93%e6%9d%9f%e6%b5%81%e7%a8%8b">#</a></h2>
+<ul>
+<li>父进程执行sys_wait检测子进程状态，状态是挂起时候结束子进程。</li>
+<li>子进程执行完调用sys_exit将自己挂起。</li>
+</ul>
+<h1 id="ret-语句跳到c语言函数对应的汇编流程">ret 语句跳到c语言函数，对应的汇编流程<a class="anchor" href="#ret-%e8%af%ad%e5%8f%a5%e8%b7%b3%e5%88%b0c%e8%af%ad%e8%a8%80%e5%87%bd%e6%95%b0%e5%af%b9%e5%ba%94%e7%9a%84%e6%b1%87%e7%bc%96%e6%b5%81%e7%a8%8b">#</a></h1>
+<h1 id="程序功能扩增">程序功能扩增<a class="anchor" href="#%e7%a8%8b%e5%ba%8f%e5%8a%9f%e8%83%bd%e6%89%a9%e5%a2%9e">#</a></h1>
+<h2 id="shll命令添加实现">shll命令添加实现<a class="anchor" href="#shll%e5%91%bd%e4%bb%a4%e6%b7%bb%e5%8a%a0%e5%ae%9e%e7%8e%b0">#</a></h2>
+<ul>
+<li>创建文件</li>
+<li>写文件</li>
+<li>删除文件</li>
+</ul>
+<h1 id="汇编和c混合编程">汇编和c混合编程<a class="anchor" href="#%e6%b1%87%e7%bc%96%e5%92%8cc%e6%b7%b7%e5%90%88%e7%bc%96%e7%a8%8b">#</a></h1>
+<ul>
+<li>project/c5/c/kernel/main.c</li>
+</ul>
+<h1 id="打印函數">打印函數<a class="anchor" href="#%e6%89%93%e5%8d%b0%e5%87%bd%e6%95%b8">#</a></h1>
+<h2 id="put_str">put_str<a class="anchor" href="#put_str">#</a></h2>
+<ul>
+<li>定义在print.S，声明在print.h</li>
+</ul>
+<h2 id="console_put_str">console_put_str<a class="anchor" href="#console_put_str">#</a></h2>
+<ul>
+<li>加锁，解决线程竞争问题</li>
+<li>定义在console.c，声明在console.h</li>
+</ul>
+<h2 id="printk">printk<a class="anchor" href="#printk">#</a></h2>
+<ul>
+<li>内核使用的格式化输出函数</li>
+<li>定义在stdio-kernel.c，声明在stdio-kernel.h</li>
+</ul>
+<h2 id="printf">printf<a class="anchor" href="#printf">#</a></h2>
+<ul>
+<li>用户使用的格式化输出函数</li>
+<li>定义在stdio.c，声明在stdio.h</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E8%AE%A1%E7%AE%97%E6%9C%BA%E9%80%9A%E8%AF%86/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>计算机通识</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#用户进程直接调用内核函数">用户进程直接调用内核函数</a></li>
+    <li><a href="#一般说明">一般说明</a></li>
+    <li><a href="#特殊说明">特殊说明</a></li>
+    <li><a href="#数据段和代码段的区别">数据段和代码段的区别</a></li>
+    <li><a href="#console_put_str-函数在哪里可以用">console_put_str 函数在哪里可以用</a></li>
+    <li><a href="#什么时候必须要通过系统调用才能使用相关函数">什么时候必须要通过系统调用，才能使用相关函数</a></li>
+    <li><a href="#系统调用过程">系统调用过程</a></li>
+    <li><a href="#内核进程内核线程用户进程用户线程区分">内核进程，内核线程，用户进程，用户线程区分。</a>
+      <ul>
+        <li><a href="#内核线程和用户进程线程的区分">内核线程和用户进程/线程的区分</a></li>
+      </ul>
+    </li>
+    <li><a href="#用户进程创建流程启动流程">用户进程创建流程,启动流程</a></li>
+    <li><a href="#进程切换流程">进程切换流程</a>
+      <ul>
+        <li><a href="#子进程结束流程">子进程结束流程</a></li>
+      </ul>
+    </li>
+    <li><a href="#ret-语句跳到c语言函数对应的汇编流程">ret 语句跳到c语言函数，对应的汇编流程</a></li>
+    <li><a href="#程序功能扩增">程序功能扩增</a>
+      <ul>
+        <li><a href="#shll命令添加实现">shll命令添加实现</a></li>
+      </ul>
+    </li>
+    <li><a href="#汇编和c混合编程">汇编和c混合编程</a></li>
+    <li><a href="#打印函數">打印函數</a>
+      <ul>
+        <li><a href="#put_str">put_str</a></li>
+        <li><a href="#console_put_str">console_put_str</a></li>
+        <li><a href="#printk">printk</a></li>
+        <li><a href="#printf">printf</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

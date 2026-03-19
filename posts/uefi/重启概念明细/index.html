@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="重启概念明细# 电源状态(主电) ： 定义：S0（主电上完） S1 S2 S3 S4 S5（只有辅电 无主电）
+主电： 定义：给CPU、DDR供电的。
+辅电: 定义：给逻辑、BMC、供电
+关机再开机: 定义：只下主电不下辅电。
+AC重启 定义：外部交流电、断电在上电,(包含下主电和辅电) 示例：拔电源。 外接设备断电（AC盒子）。
+DC重启 定义：下主电，不下辅电 示例：BMC 关机再开机
+冷重启 定义：下主电，不下辅电 等价 DC 示例： BMC 关机再开机 ，power cycle
+热重启 定义：不断电(主电辅电都不断)重启 ，系统复位 示例：BMC 立即重启、 OS rebooot
+DC warm reboot
+定义：主电在的情况下热重启 示例：
+DC cold reboot
+定义：下主电不下辅电 示例：
+sys_reset 定义：属于热重启，寄存器下电形式有区别
+kb_reset 定义：属于热重启，寄存器下电形式有区别 最后：海光4号当前重启问题结论：热重启不OK,冷重启OK \待确认
+重启程度：AC&gt;DC=冷重启&gt;热重启
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%87%8D%E5%90%AF%E6%A6%82%E5%BF%B5%E6%98%8E%E7%BB%86/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="重启概念明细">
+  <meta property="og:description" content="重启概念明细# 电源状态(主电) ： 定义：S0（主电上完） S1 S2 S3 S4 S5（只有辅电 无主电）
+主电： 定义：给CPU、DDR供电的。
+辅电: 定义：给逻辑、BMC、供电
+关机再开机: 定义：只下主电不下辅电。
+AC重启 定义：外部交流电、断电在上电,(包含下主电和辅电) 示例：拔电源。 外接设备断电（AC盒子）。
+DC重启 定义：下主电，不下辅电 示例：BMC 关机再开机
+冷重启 定义：下主电，不下辅电 等价 DC 示例： BMC 关机再开机 ，power cycle
+热重启 定义：不断电(主电辅电都不断)重启 ，系统复位 示例：BMC 立即重启、 OS rebooot
+DC warm reboot
+定义：主电在的情况下热重启 示例：
+DC cold reboot
+定义：下主电不下辅电 示例：
+sys_reset 定义：属于热重启，寄存器下电形式有区别
+kb_reset 定义：属于热重启，寄存器下电形式有区别 最后：海光4号当前重启问题结论：热重启不OK,冷重启OK \待确认
+重启程度：AC&gt;DC=冷重启&gt;热重启">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="重启概念明细">
+  <meta itemprop="description" content="重启概念明细# 电源状态(主电) ： 定义：S0（主电上完） S1 S2 S3 S4 S5（只有辅电 无主电）
+主电： 定义：给CPU、DDR供电的。
+辅电: 定义：给逻辑、BMC、供电
+关机再开机: 定义：只下主电不下辅电。
+AC重启 定义：外部交流电、断电在上电,(包含下主电和辅电) 示例：拔电源。 外接设备断电（AC盒子）。
+DC重启 定义：下主电，不下辅电 示例：BMC 关机再开机
+冷重启 定义：下主电，不下辅电 等价 DC 示例： BMC 关机再开机 ，power cycle
+热重启 定义：不断电(主电辅电都不断)重启 ，系统复位 示例：BMC 立即重启、 OS rebooot
+DC warm reboot
+定义：主电在的情况下热重启 示例：
+DC cold reboot
+定义：下主电不下辅电 示例：
+sys_reset 定义：属于热重启，寄存器下电形式有区别
+kb_reset 定义：属于热重启，寄存器下电形式有区别 最后：海光4号当前重启问题结论：热重启不OK,冷重启OK \待确认
+重启程度：AC&gt;DC=冷重启&gt;热重启">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="57">
+
+<title>重启概念明细 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%87%8D%E5%90%AF%E6%A6%82%E5%BF%B5%E6%98%8E%E7%BB%86/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>重启概念明细</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#重启概念明细">重启概念明细</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>重启概念明细</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="重启概念明细">重启概念明细<a class="anchor" href="#%e9%87%8d%e5%90%af%e6%a6%82%e5%bf%b5%e6%98%8e%e7%bb%86">#</a></h1>
+<ol>
+<li>
+<p>电源状态(主电) ：
+定义：S0（主电上完） S1 S2 S3 S4 S5（只有辅电 无主电）</p>
+</li>
+<li>
+<p>主电：
+定义：给CPU、DDR供电的。</p>
+</li>
+<li>
+<p>辅电:
+定义：给逻辑、BMC、供电</p>
+</li>
+<li>
+<p>关机再开机:
+定义：只下主电不下辅电。</p>
+</li>
+<li>
+<p>AC重启
+定义：外部交流电、断电在上电,(包含下主电和辅电)                                                      <br>
+示例：拔电源。 外接设备断电（AC盒子）。</p>
+</li>
+<li>
+<p>DC重启 <br>
+定义：下主电，不下辅电                                                                                                                              <br>
+示例：BMC  关机再开机</p>
+</li>
+<li>
+<p>冷重启
+定义：下主电，不下辅电      等价 DC   <br>
+示例：  BMC  关机再开机 ，power cycle</p>
+</li>
+<li>
+<p>热重启      <br>
+定义：不断电(主电辅电都不断)重启 ，系统复位                                                                     <br>
+示例：BMC 立即重启、 OS rebooot</p>
+</li>
+<li>
+<p>DC warm  reboot<br>
+定义：主电在的情况下热重启
+示例：</p>
+</li>
+<li>
+<p>DC cold  reboot<br>
+定义：下主电不下辅电
+示例：</p>
+</li>
+<li>
+<p>sys_reset
+定义：属于热重启，寄存器下电形式有区别</p>
+</li>
+<li>
+<p>kb_reset
+定义：属于热重启，寄存器下电形式有区别
+最后：海光4号当前重启问题结论：热重启不OK,冷重启OK \待确认</p>
+</li>
+</ol>
+<p>重启程度：AC&gt;DC=冷重启&gt;热重启</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/%E6%80%BB%E7%BA%BF/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>通信总线</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/" class="flex align-center">
+      <span>资料路径</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#重启概念明细">重启概念明细</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

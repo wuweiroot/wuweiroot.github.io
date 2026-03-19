@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="$$是指本 section 的起始地址，上面说过了$是本行所在的地址# 如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延# $和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用#">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E6%B1%87%E7%BC%96%E8%AF%AD%E6%B3%95/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="$$是指本 section 的起始地址，上面说过了$是本行所在的地址# 如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延# $和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用#">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="$$是指本 section 的起始地址，上面说过了$是本行所在的地址# 如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延# $和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用#">
+  <meta itemprop="wordCount" content="19">
+
+<title>汇编语法 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E6%B1%87%E7%BC%96%E8%AF%AD%E6%B3%95/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>汇编语法</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#是指本-section-的起始地址上面说过了是本行所在的地址">$$是指本 section 的起始地址，上面说过了$是本行所在的地址</a></li>
+    <li><a href="#如果该-section-用了-vstartxxxx-修饰-的值则是此-section-的虚拟起始地址xxxx-的值是以-xxxx-为起始地址的顺延">如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延</a></li>
+    <li><a href="#和是编译器-nasm-预留的关键字用来表示当前行和本-section-的地址起到了标号的作用">$和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>汇编语法</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="是指本-section-的起始地址上面说过了是本行所在的地址">$$是指本 section 的起始地址，上面说过了$是本行所在的地址<a class="anchor" href="#%e6%98%af%e6%8c%87%e6%9c%ac-section-%e7%9a%84%e8%b5%b7%e5%a7%8b%e5%9c%b0%e5%9d%80%e4%b8%8a%e9%9d%a2%e8%af%b4%e8%bf%87%e4%ba%86%e6%98%af%e6%9c%ac%e8%a1%8c%e6%89%80%e5%9c%a8%e7%9a%84%e5%9c%b0%e5%9d%80">#</a></h1>
+<h1 id="如果该-section-用了-vstartxxxx-修饰-的值则是此-section-的虚拟起始地址xxxx-的值是以-xxxx-为起始地址的顺延">如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延<a class="anchor" href="#%e5%a6%82%e6%9e%9c%e8%af%a5-section-%e7%94%a8%e4%ba%86-vstartxxxx-%e4%bf%ae%e9%a5%b0-%e7%9a%84%e5%80%bc%e5%88%99%e6%98%af%e6%ad%a4-section-%e7%9a%84%e8%99%9a%e6%8b%9f%e8%b5%b7%e5%a7%8b%e5%9c%b0%e5%9d%80xxxx-%e7%9a%84%e5%80%bc%e6%98%af%e4%bb%a5-xxxx-%e4%b8%ba%e8%b5%b7%e5%a7%8b%e5%9c%b0%e5%9d%80%e7%9a%84%e9%a1%ba%e5%bb%b6">#</a></h1>
+<h1 id="和是编译器-nasm-预留的关键字用来表示当前行和本-section-的地址起到了标号的作用">$和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用<a class="anchor" href="#%e5%92%8c%e6%98%af%e7%bc%96%e8%af%91%e5%99%a8-nasm-%e9%a2%84%e7%95%99%e7%9a%84%e5%85%b3%e9%94%ae%e5%ad%97%e7%94%a8%e6%9d%a5%e8%a1%a8%e7%a4%ba%e5%bd%93%e5%89%8d%e8%a1%8c%e5%92%8c%e6%9c%ac-section-%e7%9a%84%e5%9c%b0%e5%9d%80%e8%b5%b7%e5%88%b0%e4%ba%86%e6%a0%87%e5%8f%b7%e7%9a%84%e4%bd%9c%e7%94%a8">#</a></h1>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E6%96%B0%E5%A2%9E%E5%8A%9F%E8%83%BD/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>新增功能</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E8%AE%A1%E7%AE%97%E6%9C%BA%E9%80%9A%E8%AF%86/" class="flex align-center">
+      <span>计算机通识</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#是指本-section-的起始地址上面说过了是本行所在的地址">$$是指本 section 的起始地址，上面说过了$是本行所在的地址</a></li>
+    <li><a href="#如果该-section-用了-vstartxxxx-修饰-的值则是此-section-的虚拟起始地址xxxx-的值是以-xxxx-为起始地址的顺延">如果该 section 用了 vstart=xxxx 修饰， $$的值则是此 section 的虚拟起始地址xxxx。 $的值是以 xxxx 为起始地址的顺延</a></li>
+    <li><a href="#和是编译器-nasm-预留的关键字用来表示当前行和本-section-的地址起到了标号的作用">$和$$是编译器 NASM 预留的关键字，用来表示当前行和本 section 的地址，起到了标号的作用</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,34 @@
+<mxfile host="65bd71144e" pages="1">
+    <diagram id="QspxGSOVHSDVASwDIoQV" name="Page-1">
+        <mxGraphModel dx="652" dy="596" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="&lt;b&gt;&lt;font color=&quot;#cc0000&quot;&gt;由编译器自动分配释放&lt;/font&gt;，存放函数的参数值，局部变量等&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="110" y="606" width="120" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="栈区" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="570" width="40" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="&lt;b&gt;由程序员分配释放（动态内存申请与释放），&lt;font color=&quot;#cc0000&quot;&gt;若程序员不释放，程序结束时可能由操作系统回收。&lt;/font&gt;&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="606" width="240" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="堆区" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="570" width="40" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="&lt;b&gt;全局变量和静态变量时存储在一块的&lt;/b&gt;，&lt;font color=&quot;#cc0000&quot;&gt;&lt;b&gt;该区域在程序结束后由操作系统释放&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="716" width="240" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="全局区" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="686" width="40" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="826" width="240" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="代码区" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="796" width="40" height="20" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

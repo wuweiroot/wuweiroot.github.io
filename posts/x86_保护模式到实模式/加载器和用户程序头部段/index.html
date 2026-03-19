@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content=";加载器和用户程序头部段# c08.asm //用户程序文件# 用户程序头部 &#43; 其他;dw字 dd双字;用户程序头部：;1 程序总长度 03c0;2 入口点段内偏移 , 入口点所在段汇编地址 0xA0 0x20;3 重定位表项数 05;4 重定位表项1-n 20 f0 0x100 0x0280 0x02c0;段的汇编地址表达式：;section.段名字.start;section.code_1.startc08_mbr.asm //加载器程序文件# 加载器的工作流程:# 读取用户程序的起始扇区 把整个用户程序都读入内存 ，需要确认用户程序加载位置 计算段的物理地址和逻辑段地址（段的重定位） 转移用户程序执行（将处理器的控制权交给用户程序） 读取用户程序的起始扇区# IO 设备# 些设备分成两种，一种是输入设备，比如键盘、鼠标、 麦克风、摄像头等；另一种是输出设备，比如显示器、打印机、扬声器等。输入设备和输出设备统 称输入输出（Input/Output，I/O）设备
+不同的外围设备，都有各自不同的 I/O接口
+IO 接口# I/O 接口可以是一个电路板，也可能是一块小芯片，这取决于它有多复杂。无论如何，它是一 个典型的变换器，或者说是一个翻译器，在一边，它按处理器的信号规程工作，负责把处理器的信 号转换成外围设备能接受的另一种信号；在另一边，它也做同样的工作，把外围设备的信号变换成 处理器可以接受的形式。
+IO 指令# 在 Intel 的系统中，只允许 65536（十进制数）个端口存在，端口号从 0 到 65535（0x0000～0xffff）。 因为是独立编址，所以，端口的访问不能使用类似于 mov 这样的指令，取而代之的是 in 和 out 指令
+IN指令： 端口到CPU in ax,端口号
+OUT指令， CPU到端口 out 端口号，ax
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/x86_%E4%BF%9D%E6%8A%A4%E6%A8%A1%E5%BC%8F%E5%88%B0%E5%AE%9E%E6%A8%A1%E5%BC%8F/%E5%8A%A0%E8%BD%BD%E5%99%A8%E5%92%8C%E7%94%A8%E6%88%B7%E7%A8%8B%E5%BA%8F%E5%A4%B4%E9%83%A8%E6%AE%B5/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="加载器和用户程序头部段">
+  <meta property="og:description" content=";加载器和用户程序头部段# c08.asm //用户程序文件# 用户程序头部 &#43; 其他;dw字 dd双字;用户程序头部：;1 程序总长度 03c0;2 入口点段内偏移 , 入口点所在段汇编地址 0xA0 0x20;3 重定位表项数 05;4 重定位表项1-n 20 f0 0x100 0x0280 0x02c0;段的汇编地址表达式：;section.段名字.start;section.code_1.startc08_mbr.asm //加载器程序文件# 加载器的工作流程:# 读取用户程序的起始扇区 把整个用户程序都读入内存 ，需要确认用户程序加载位置 计算段的物理地址和逻辑段地址（段的重定位） 转移用户程序执行（将处理器的控制权交给用户程序） 读取用户程序的起始扇区# IO 设备# 些设备分成两种，一种是输入设备，比如键盘、鼠标、 麦克风、摄像头等；另一种是输出设备，比如显示器、打印机、扬声器等。输入设备和输出设备统 称输入输出（Input/Output，I/O）设备
+不同的外围设备，都有各自不同的 I/O接口
+IO 接口# I/O 接口可以是一个电路板，也可能是一块小芯片，这取决于它有多复杂。无论如何，它是一 个典型的变换器，或者说是一个翻译器，在一边，它按处理器的信号规程工作，负责把处理器的信 号转换成外围设备能接受的另一种信号；在另一边，它也做同样的工作，把外围设备的信号变换成 处理器可以接受的形式。
+IO 指令# 在 Intel 的系统中，只允许 65536（十进制数）个端口存在，端口号从 0 到 65535（0x0000～0xffff）。 因为是独立编址，所以，端口的访问不能使用类似于 mov 这样的指令，取而代之的是 in 和 out 指令
+IN指令： 端口到CPU in ax,端口号
+OUT指令， CPU到端口 out 端口号，ax">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="加载器和用户程序头部段">
+  <meta itemprop="description" content=";加载器和用户程序头部段# c08.asm //用户程序文件# 用户程序头部 &#43; 其他;dw字 dd双字;用户程序头部：;1 程序总长度 03c0;2 入口点段内偏移 , 入口点所在段汇编地址 0xA0 0x20;3 重定位表项数 05;4 重定位表项1-n 20 f0 0x100 0x0280 0x02c0;段的汇编地址表达式：;section.段名字.start;section.code_1.startc08_mbr.asm //加载器程序文件# 加载器的工作流程:# 读取用户程序的起始扇区 把整个用户程序都读入内存 ，需要确认用户程序加载位置 计算段的物理地址和逻辑段地址（段的重定位） 转移用户程序执行（将处理器的控制权交给用户程序） 读取用户程序的起始扇区# IO 设备# 些设备分成两种，一种是输入设备，比如键盘、鼠标、 麦克风、摄像头等；另一种是输出设备，比如显示器、打印机、扬声器等。输入设备和输出设备统 称输入输出（Input/Output，I/O）设备
+不同的外围设备，都有各自不同的 I/O接口
+IO 接口# I/O 接口可以是一个电路板，也可能是一块小芯片，这取决于它有多复杂。无论如何，它是一 个典型的变换器，或者说是一个翻译器，在一边，它按处理器的信号规程工作，负责把处理器的信 号转换成外围设备能接受的另一种信号；在另一边，它也做同样的工作，把外围设备的信号变换成 处理器可以接受的形式。
+IO 指令# 在 Intel 的系统中，只允许 65536（十进制数）个端口存在，端口号从 0 到 65535（0x0000～0xffff）。 因为是独立编址，所以，端口的访问不能使用类似于 mov 这样的指令，取而代之的是 in 和 out 指令
+IN指令： 端口到CPU in ax,端口号
+OUT指令， CPU到端口 out 端口号，ax">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="406">
+
+<title>加载器和用户程序头部段 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/x86_%E4%BF%9D%E6%8A%A4%E6%A8%A1%E5%BC%8F%E5%88%B0%E5%AE%9E%E6%A8%A1%E5%BC%8F/%E5%8A%A0%E8%BD%BD%E5%99%A8%E5%92%8C%E7%94%A8%E6%88%B7%E7%A8%8B%E5%BA%8F%E5%A4%B4%E9%83%A8%E6%AE%B5/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>加载器和用户程序头部段</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#加载器和用户程序头部段">;加载器和用户程序头部段</a>
+      <ul>
+        <li><a href="#c08asm---用户程序文件">c08.asm   //用户程序文件</a></li>
+        <li><a href="#c08_mbrasm--加载器程序文件">c08_mbr.asm  //加载器程序文件</a></li>
+      </ul>
+    </li>
+    <li><a href="#过程调回">过程调回</a>
+      <ul>
+        <li><a href="#16-位相对近调用">16 位相对近调用</a></li>
+        <li><a href="#16-位间接绝对近调用">16 位间接绝对近调用</a></li>
+        <li><a href="#16-位直接绝对远调用">16 位直接绝对远调用</a></li>
+        <li><a href="#显卡">显卡</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>加载器和用户程序头部段</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="加载器和用户程序头部段">;加载器和用户程序头部段<a class="anchor" href="#%e5%8a%a0%e8%bd%bd%e5%99%a8%e5%92%8c%e7%94%a8%e6%88%b7%e7%a8%8b%e5%ba%8f%e5%a4%b4%e9%83%a8%e6%ae%b5">#</a></h1>
+<h2 id="c08asm---用户程序文件">c08.asm   //用户程序文件<a class="anchor" href="#c08asm---%e7%94%a8%e6%88%b7%e7%a8%8b%e5%ba%8f%e6%96%87%e4%bb%b6">#</a></h2>
+<pre><code>用户程序头部 + 其他
+;dw字 dd双字
+
+;用户程序头部：
+;1  程序总长度  03c0
+;2  入口点段内偏移 , 入口点所在段汇编地址  0xA0 0x20
+;3  重定位表项数   05
+;4  重定位表项1-n 20 f0 0x100 0x0280 0x02c0
+
+;段的汇编地址表达式：
+;section.段名字.start
+;section.code_1.start
+</code></pre>
+<h2 id="c08_mbrasm--加载器程序文件">c08_mbr.asm  //加载器程序文件<a class="anchor" href="#c08_mbrasm--%e5%8a%a0%e8%bd%bd%e5%99%a8%e7%a8%8b%e5%ba%8f%e6%96%87%e4%bb%b6">#</a></h2>
+<h3 id="加载器的工作流程"><code>加载器的工作流程:</code><a class="anchor" href="#%e5%8a%a0%e8%bd%bd%e5%99%a8%e7%9a%84%e5%b7%a5%e4%bd%9c%e6%b5%81%e7%a8%8b">#</a></h3>
+<ul>
+<li>读取用户程序的起始扇区</li>
+<li>把整个用户程序都读入内存 ，需要确认用户程序加载位置</li>
+<li>计算段的物理地址和逻辑段地址（段的重定位）</li>
+<li>转移用户程序执行（将处理器的控制权交给用户程序）</li>
+</ul>
+<h3 id="读取用户程序的起始扇区">读取用户程序的起始扇区<a class="anchor" href="#%e8%af%bb%e5%8f%96%e7%94%a8%e6%88%b7%e7%a8%8b%e5%ba%8f%e7%9a%84%e8%b5%b7%e5%a7%8b%e6%89%87%e5%8c%ba">#</a></h3>
+<h4 id="io-设备">IO 设备<a class="anchor" href="#io-%e8%ae%be%e5%a4%87">#</a></h4>
+<blockquote class='book-hint '>
+<p>些设备分成两种，一种是输入设备，比如键盘、鼠标、
+麦克风、摄像头等；另一种是输出设备，比如显示器、打印机、扬声器等。输入设备和输出设备统
+称输入输出（Input/Output，I/O）设备</p>
+</blockquote><p>不同的外围设备，都有各自不同的 I/O接口</p>
+<h4 id="io-接口">IO 接口<a class="anchor" href="#io-%e6%8e%a5%e5%8f%a3">#</a></h4>
+<blockquote class='book-hint '>
+<p>I/O 接口可以是一个电路板，也可能是一块小芯片，这取决于它有多复杂。无论如何，它是一
+个典型的变换器，或者说是一个翻译器，在一边，它按处理器的信号规程工作，负责把处理器的信
+号转换成外围设备能接受的另一种信号；在另一边，它也做同样的工作，把外围设备的信号变换成
+处理器可以接受的形式。</p>
+</blockquote><h4 id="io-指令">IO 指令<a class="anchor" href="#io-%e6%8c%87%e4%bb%a4">#</a></h4>
+<blockquote class='book-hint '>
+<p>在 Intel 的系统中，只允许 65536（十进制数）个端口存在，端口号从 0 到 65535（0x0000～0xffff）。
+因为是独立编址，所以，端口的访问不能使用类似于 mov 这样的指令，取而代之的是 in 和 out 指令<br>
+IN指令：  端口到CPU        in ax,端口号<br>
+OUT指令， CPU到端口        out 端口号，ax</p>
+</blockquote><h4 id="i0-conterller-hub--ich">I0 Conterller Hub : ICH<a class="anchor" href="#i0-conterller-hub--ich">#</a></h4>
+<blockquote class='book-hint '>
+<p>输入输出控制设备集中器（I/O Controller Hub，ICH）芯片，该芯
+片的作用是连接不同的总线，并协调各个 I/O 接口对处理器的访问。在个人计算机上，这块芯片就
+是所谓的南桥。</p>
+</blockquote><p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/IO_Controller_Hub.png">
+    <img src="/images/IO_Controller_Hub.png" 
+         alt="ICH" 
+         />
+  </a>
+</div>
+</p>
+<h4 id="io-端口">IO 端口<a class="anchor" href="#io-%e7%ab%af%e5%8f%a3">#</a></h4>
+<blockquote class='book-hint '>
+<p>端口是处理器和外围设备通过 I/O 接口交流的窗口，每一个 I/O 接口都可能拥有好几个端口，
+分别用于不同的目的。</p>
+</blockquote><h3 id="硬盘块block设备">硬盘&ndash;块（Block）设备<a class="anchor" href="#%e7%a1%ac%e7%9b%98%e5%9d%97block%e8%ae%be%e5%a4%87">#</a></h3>
+<blockquote class='book-hint '>
+<p>&ldquo;CHS&rdquo; 是 &ldquo;Cylinder-Head-Sector&rdquo; 的缩写，表示硬盘的物理几何结构。在早期的硬盘中，数据的寻址是通过柱面（Cylinder）、磁头（Head）和扇区（Sector）来实现的。这种寻址方式被称为 CHS 寻址。然而，随着技术的发展，CHS 寻址方式逐渐被 LBA 寻址方式所取代。
+&ldquo;LBA&rdquo; 是 &ldquo;Logical Block Addressing&rdquo; 的缩写，表示逻辑块寻址。LBA 是一种更为直观和简单的硬盘寻址方式，它将硬盘的扇区抽象为一个线性的逻辑块序列，从0开始编号。使用 LBA 寻址方式，可以更方便地寻址硬盘上的数据，而不需要关心物理结构。</p>
+</blockquote><h4 id="硬盘端口1f01f7">硬盘端口，1f0~1f7<a class="anchor" href="#%e7%a1%ac%e7%9b%98%e7%ab%af%e5%8f%a31f01f7">#</a></h4>
+<blockquote class='book-hint '>
+<p>数据寄存器端口：通常是 0x1F0 或 0x170。这个端口用于读取或写入硬盘的数据。
+错误寄存器端口：通常是 0x1F1 或 0x171。这个端口用于读取硬盘的错误信息。
+扇区计数寄存器端口：通常是 0x1F2 或 0x172。这个端口用于指定要读取或写入的扇区数。
+扇区号寄存器端口：通常是 0x1F3 或 0x173。这个端口用于指定要读取或写入的起始扇区号。
+柱面低 8 位寄存器端口：通常是 0x1F4 或 0x174。这个端口用于指定要读取或写入的柱面号的低 8 位。
+柱面高 8 位寄存器端口：通常是 0x1F5 或 0x175。这个端口用于指定要读取或写入的柱面号的高 8 位。
+驱动器/头寄存器端口：通常是 0x1F6 或 0x176。这个端口用于指定要访问的硬盘驱动器和磁头号。
+状态寄存器端口：通常是 0x1F7 或 0x177。这个端口用于读取硬盘的状态信息。</p>
+</blockquote><pre tabindex="0"><code>read_hard_disk_0:                        ;从硬盘读取一个逻辑扇区
+                                         ;输入：DI:SI=起始逻辑扇区号  xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+                                         ;      DS:BX=目标缓冲区地址
+         push ax
+         push bx
+         push cx
+         push dx
+      
+         ;读取的扇区数
+         mov dx,0x1f2                    ;扇区计数寄存器端口
+         mov al,1
+         out dx,al                       ;读取的扇区数
+
+         inc dx                          ;0x1f3 加一指令
+         mov ax,si
+         out dx,al                       ;LBA28地址7~0
+
+         inc dx                          ;0x1f4
+         mov al,ah
+         out dx,al                       ;LBA地址15~8
+
+         inc dx                          ;0x1f5
+         mov ax,di
+         out dx,al                       ;LBA地址23~16
+
+         inc dx                          ;0x1f6
+         mov al,0xe0                     ;LBA28模式，主盘
+         or al,ah                        ;LBA地址27~24
+         out dx,al
+
+         inc dx                          ;0x1f7
+         mov al,0x20                     ;读命令
+         out dx,al
+
+  .waits:
+         in al,dx                         ;读取端口 1f7
+         and al,0x88
+         cmp al,0x08
+         jnz .waits                      ;比较失败跳转，比较成功继续，代表 不忙，且硬盘已准备好数据传输 
+
+         mov cx,256                      ;总共要读取的字数 ，一个扇区是256字节
+         mov dx,0x1f0
+  .readw:
+         in ax,dx                        ;端口1f0的数据传给AX
+         mov [bx],ax                      ;ax中数据写入BX指向的内存
+         add bx,2                         ;指针偏移
+         loop .readw
+
+         pop dx
+         pop cx
+         pop bx
+         pop ax
+      
+         ret</code></pre><h3 id="确认用户程序加载位置phy_base-0x10000-转换为逻辑地址段地址-ds-偏移地址-0">;确认用户程序加载位置，phy_base 0x10000 转换为逻辑地址（段地址 ds +偏移地址 0）<a class="anchor" href="#%e7%a1%ae%e8%ae%a4%e7%94%a8%e6%88%b7%e7%a8%8b%e5%ba%8f%e5%8a%a0%e8%bd%bd%e4%bd%8d%e7%bd%aephy_base-0x10000-%e8%bd%ac%e6%8d%a2%e4%b8%ba%e9%80%bb%e8%be%91%e5%9c%b0%e5%9d%80%e6%ae%b5%e5%9c%b0%e5%9d%80-ds-%e5%81%8f%e7%a7%bb%e5%9c%b0%e5%9d%80-0">#</a></h3>
+<pre tabindex="0"><code>mov ax,[cs:phy_base]            ;计算用于加载用户程序的逻辑段地址 
+mov dx,[cs:phy_base+0x02]
+mov bx,16        
+div bx     ;DIV src     如果 src 是一个字（16位）或者一个双字，则被除数由 DX:AX 组成，商将存储在 AX 中，余数将存储在 DX 中。
+mov ds,ax                 ;令DS和ES指向该段（用户程序目的地址，0x10000）以进行操作
+mov es,ax       </code></pre><h1 id="过程调回">过程调回<a class="anchor" href="#%e8%bf%87%e7%a8%8b%e8%b0%83%e5%9b%9e">#</a></h1>
+<h2 id="16-位相对近调用">16 位相对近调用<a class="anchor" href="#16-%e4%bd%8d%e7%9b%b8%e5%af%b9%e8%bf%91%e8%b0%83%e7%94%a8">#</a></h2>
+<p>位相对近调用是三字节指令，操作码为 0xE8，后跟 16 位的操作数，因为是相对调用，故该
+操作数是当前 call 指令相对于目标过程的偏移量。</p>
+<blockquote class='book-hint '>
+<p>call proc_1 (call near proc_1)</p>
+</blockquote><p>它用指令指针寄存器 IP 的当前内容加上指令中的操作数，再加上 3，得到一个新的偏移地址。接着，将 IP 的
+原有内容压入堆栈。最后，用刚才计算出的偏移地址取代 IP 原有的内容。这直接导致处理器的执
+行流转移到目标位置处</p>
+<h2 id="16-位间接绝对近调用">16 位间接绝对近调用<a class="anchor" href="#16-%e4%bd%8d%e9%97%b4%e6%8e%a5%e7%bb%9d%e5%af%b9%e8%bf%91%e8%b0%83%e7%94%a8">#</a></h2>
+<p>这种调用也是近调用，只能调用当前代码段内的过程，指令
+中的操作数不是偏移量，而是被调用过程的真实偏移地址，故称为绝对地址。不过，这个偏移地址
+不是直接出现在指令中，而是由 16 位的通用寄存器或者 16 位的内存单元给出。</p>
+<blockquote class='book-hint '>
+<p>call cx ;目标地址在 CX 中。省略了关键字“near”，下同<br>
+call [0x3000] ;要先访问内存才能取得目标偏移地址<br>
+call [bx] ;要先访问内存才能取得目标偏移地址<br>
+call [bx+si+0x02] ;要先访问内存才能取得目标偏移地址</p>
+</blockquote><h2 id="16-位直接绝对远调用">16 位直接绝对远调用<a class="anchor" href="#16-%e4%bd%8d%e7%9b%b4%e6%8e%a5%e7%bb%9d%e5%af%b9%e8%bf%9c%e8%b0%83%e7%94%a8">#</a></h2>
+<p>这种调用属于段间调用，即调用另一个代码段内的过程，所
+以称为远调用（Far Call）。很容易想到，远调用既需要被调用过程所在的段地址，也需要该过程在
+段内的偏移地址<br>
+16 位”是针对偏移地址来说的，而不用于限定段地址；“直接”的意思是，段地址和偏移地址
+直接在 call 指令中给出了。当然，这里的地址也是绝对地址。</p>
+<blockquote class='book-hint '>
+<p>call 0x2000:0x0030 //0x9A 是操作码，后面跟着的两个字分别是偏移地址和段地址，按规定，偏移地址在前，段地址在后
+call far [0x2000]<br>
+call far [proc_1]
+call far [bx]  //访问 dx:bx 内存中的两个字，偏移地址和段地址,放入IP和CS
+call far [bx+si]</p>
+</blockquote><p>将代码段寄存器 CS 和指令指针寄存器 IP 的当前内容分别压栈；最后，用刚才取得的段地址和偏移地址分别取代 CS 和 IP 的原值</p>
+<h2 id="显卡">显卡<a class="anchor" href="#%e6%98%be%e5%8d%a1">#</a></h2>
+<p>显卡布局 25x80 25行 80列</p>
+<blockquote class='book-hint '>
+<p>光标值等于 行*80+列
+最大值1999</p>
+</blockquote><p>索引端口 0x3D4</p>
+<blockquote class='book-hint '>
+<p>用来控制选择显卡的寄存器
+0x0e 0x0f 光标位置寄存器</p>
+</blockquote><p>数据端口 0x3D5</p>
+<blockquote class='book-hint '>
+<p>用来往索引端口指定的寄存器里写数据</p>
+</blockquote></div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/x86_%E4%BF%9D%E6%8A%A4%E6%A8%A1%E5%BC%8F%E5%88%B0%E5%AE%9E%E6%A8%A1%E5%BC%8F/x86%E6%B1%87%E7%BC%96%E8%AF%AD%E8%A8%80%E4%BB%8E%E5%AE%9E%E6%A8%A1%E5%BC%8F%E5%88%B0%E4%BF%9D%E6%8A%A4%E6%A8%A1%E5%BC%8F/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>x86汇编语言从实模式到保护模式</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#加载器和用户程序头部段">;加载器和用户程序头部段</a>
+      <ul>
+        <li><a href="#c08asm---用户程序文件">c08.asm   //用户程序文件</a></li>
+        <li><a href="#c08_mbrasm--加载器程序文件">c08_mbr.asm  //加载器程序文件</a></li>
+      </ul>
+    </li>
+    <li><a href="#过程调回">过程调回</a>
+      <ul>
+        <li><a href="#16-位相对近调用">16 位相对近调用</a></li>
+        <li><a href="#16-位间接绝对近调用">16 位间接绝对近调用</a></li>
+        <li><a href="#16-位直接绝对远调用">16 位直接绝对远调用</a></li>
+        <li><a href="#显卡">显卡</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

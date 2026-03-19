@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Makefile on 大象的blog</title>
+    <link>https://wuweiroot.github.io/posts/makefile/</link>
+    <description>Recent content in Makefile on 大象的blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Fri, 13 Mar 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://wuweiroot.github.io/posts/makefile/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>makefile</title>
+      <link>https://wuweiroot.github.io/posts/makefile/makefile/</link>
+      <pubDate>Fri, 13 Mar 2026 00:00:00 +0000</pubDate>
+      <guid>https://wuweiroot.github.io/posts/makefile/makefile/</guid>
+      <description>&lt;h1 id=&#34;makefile&#34;&gt;makefile&lt;a class=&#34;anchor&#34; href=&#34;#makefile&#34;&gt;#&lt;/a&gt;&lt;/h1&gt;&#xA;&lt;h2 id=&#34;基本语法&#34;&gt;基本语法&lt;a class=&#34;anchor&#34; href=&#34;#%e5%9f%ba%e6%9c%ac%e8%af%ad%e6%b3%95&#34;&gt;#&lt;/a&gt;&lt;/h2&gt;&#xA;&lt;p&gt;目标文件:依赖文件&#xA;[Tab]命令&lt;/p&gt;&#xA;&lt;p&gt;makefile 基本语法包括三部分，这三部分加在一起称为一组规则，下面解释下各部分的意义。&#xA;（1）目标文件是指此规则中想要生成的文件，可以是.o 结尾的目标文件，也可以是可执行文件，也可&#xA;以是个伪目标，后面会介绍伪目标。&#xA;（2）依赖文件是指要生成此规则中的目标文件，需要哪些文件。通常依赖文件不是 1 个，所以此处是&#xA;个依赖文件的列表&#xA;（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令&#xA;要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行&#xA;时便知道这是要执行的命令。（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令&#xA;要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行&#xA;时便知道这是要执行的命令。&lt;/p&gt;&#xA;&lt;h2 id=&#34;示例&#34;&gt;示例&lt;a class=&#34;anchor&#34; href=&#34;#%e7%a4%ba%e4%be%8b&#34;&gt;#&lt;/a&gt;&lt;/h2&gt;&#xA;&lt;p&gt;&amp;rsquo;&amp;rsquo;&amp;rsquo;&#xA;1:2&#xA;echo &amp;ldquo;makefile test ok&amp;rdquo;&#xA;&amp;rsquo;&amp;rsquo;&amp;rsquo;&#xA;此例子中 makefile 就两行，足够简单了。第 1 行中，目标文件是文件 1，依赖文件是文件 2。第 2 行&#xA;是要执行的命令。&#xA;此 makefile 的意义是如果文件 2 的 mtime 比文件 1 的 mtime 要新，就调用 echo 命令打印字符串 makefile test ok”&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title></title>
+      <link>https://wuweiroot.github.io/posts/makefile/test/gcc/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>https://wuweiroot.github.io/posts/makefile/test/gcc/</guid>
+      <description>&lt;p&gt;PS E:\culture\Professional\Project\Makefile&amp;gt; gcc test2.c test1.c&#xA;PS E:\culture\Professional\Project\Makefile&amp;gt; gcc test1.o test2.o -o output.exe&#xA;PS E:\culture\Professional\Project\Makefile&amp;gt; gcc test1.o test2.o -o output.bin&lt;/p&gt;&#xA;&lt;p&gt;make all&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

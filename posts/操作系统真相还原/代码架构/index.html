@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+流程# bios -&gt; mbr - &gt;loder -&gt;kernel
+BIOS将第一扇区（mbr）加载到0x7c00内存位置后跳转的0x7c00处执行。 mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43;0x300处执行 0x500～0x7BFF 和 0x7E00～9FBFF 这两段内存区域可用。 loader 放在低处，多留出一些空间给内核 将 loader 的加载地址选为 0x900。为什么不是 0x500，这个多省空间？还是预留出一定空间吧 ， 彼此隔开远一点心里才踏实 loder创建GDT表，进入保护模式，加载内核（内核位于第9扇区）到 0x70000，创建页目录 ，初始化内核，进入内核 随意取的，是觉得 0x70000～0x9fbff 有 0x2fbff=190KB 字节的空间，而我们的内核不超过 100KB， boot# mbr# mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43; 0x300处执行
+loder# 位于硬盘第二扇区，被加载到0x500内存位置 读取内存布局存在标号total_mem_bytes的内存位置 进入保护模式# - 打开A20- 加载GDT ，lgdt [gdt_ptr]- cr0第0位置1，打开分页跳转，刷新流水线 jmp SELECTOR_CODE:p_mode_start 值的更新：CS 寄存器会被设置为 SELECTOR_CODE。 段描述符加载：CPU 会根据 CS 中的段选择子从 GDT 中找到对应的代码段描述符 EIP 寄存器会被设置为 p_mode_start 初始化ds es ss寄存器， sp堆栈指针，gs寄存器（显存指针） 加载内核（内核位于第9扇区）到 0x70000 创建页目录和页表# 内核地址映射到虚拟地址3G以上 虚拟地址0xc0000000以上的1MB地址映射到物理地址1MB之内 物理地址范围 0～0x3fffff 之间的物理页，这也就是虚拟地址 0x0～0x3fffff和虚拟地址 0xc0000000～0xc03fffff 对应的物理页 页目录表在内存中的起始位置——从1M开始的位置 1M开始的4KB置为0，将页目录表初始化 第一个页表位置位于也目录上方，页目录位置&#43;0x1000(4kb) 第一个页表位置写入第0号和第768号(地址偏移0xc00)页目录项 0xc0000000 的高 10 位是 0x300，即十进制的 768 页目录自身地址写入最后一个页目录项 紧挨着的第二个页表第三个到第254个页表地址依次写入页目录项的796-1026号位置 初始化第一个页表 将低端地址1M(0x1000,4096)空间的256个物理页地址依次填写到页表项中 4kb=0x1000=4*1024=4096 1Mb= 0x100000 ">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E4%BB%A3%E7%A0%81%E6%9E%B6%E6%9E%84/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="代码架构">
+  <meta property="og:description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+流程# bios -&gt; mbr - &gt;loder -&gt;kernel
+BIOS将第一扇区（mbr）加载到0x7c00内存位置后跳转的0x7c00处执行。 mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43;0x300处执行 0x500～0x7BFF 和 0x7E00～9FBFF 这两段内存区域可用。 loader 放在低处，多留出一些空间给内核 将 loader 的加载地址选为 0x900。为什么不是 0x500，这个多省空间？还是预留出一定空间吧 ， 彼此隔开远一点心里才踏实 loder创建GDT表，进入保护模式，加载内核（内核位于第9扇区）到 0x70000，创建页目录 ，初始化内核，进入内核 随意取的，是觉得 0x70000～0x9fbff 有 0x2fbff=190KB 字节的空间，而我们的内核不超过 100KB， boot# mbr# mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43; 0x300处执行
+loder# 位于硬盘第二扇区，被加载到0x500内存位置 读取内存布局存在标号total_mem_bytes的内存位置 进入保护模式# - 打开A20- 加载GDT ，lgdt [gdt_ptr]- cr0第0位置1，打开分页跳转，刷新流水线 jmp SELECTOR_CODE:p_mode_start 值的更新：CS 寄存器会被设置为 SELECTOR_CODE。 段描述符加载：CPU 会根据 CS 中的段选择子从 GDT 中找到对应的代码段描述符 EIP 寄存器会被设置为 p_mode_start 初始化ds es ss寄存器， sp堆栈指针，gs寄存器（显存指针） 加载内核（内核位于第9扇区）到 0x70000 创建页目录和页表# 内核地址映射到虚拟地址3G以上 虚拟地址0xc0000000以上的1MB地址映射到物理地址1MB之内 物理地址范围 0～0x3fffff 之间的物理页，这也就是虚拟地址 0x0～0x3fffff和虚拟地址 0xc0000000～0xc03fffff 对应的物理页 页目录表在内存中的起始位置——从1M开始的位置 1M开始的4KB置为0，将页目录表初始化 第一个页表位置位于也目录上方，页目录位置&#43;0x1000(4kb) 第一个页表位置写入第0号和第768号(地址偏移0xc00)页目录项 0xc0000000 的高 10 位是 0x300，即十进制的 768 页目录自身地址写入最后一个页目录项 紧挨着的第二个页表第三个到第254个页表地址依次写入页目录项的796-1026号位置 初始化第一个页表 将低端地址1M(0x1000,4096)空间的256个物理页地址依次填写到页表项中 4kb=0x1000=4*1024=4096 1Mb= 0x100000">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="代码架构">
+  <meta itemprop="description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+流程# bios -&gt; mbr - &gt;loder -&gt;kernel
+BIOS将第一扇区（mbr）加载到0x7c00内存位置后跳转的0x7c00处执行。 mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43;0x300处执行 0x500～0x7BFF 和 0x7E00～9FBFF 这两段内存区域可用。 loader 放在低处，多留出一些空间给内核 将 loader 的加载地址选为 0x900。为什么不是 0x500，这个多省空间？还是预留出一定空间吧 ， 彼此隔开远一点心里才踏实 loder创建GDT表，进入保护模式，加载内核（内核位于第9扇区）到 0x70000，创建页目录 ，初始化内核，进入内核 随意取的，是觉得 0x70000～0x9fbff 有 0x2fbff=190KB 字节的空间，而我们的内核不超过 100KB， boot# mbr# mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 &#43; 0x300处执行
+loder# 位于硬盘第二扇区，被加载到0x500内存位置 读取内存布局存在标号total_mem_bytes的内存位置 进入保护模式# - 打开A20- 加载GDT ，lgdt [gdt_ptr]- cr0第0位置1，打开分页跳转，刷新流水线 jmp SELECTOR_CODE:p_mode_start 值的更新：CS 寄存器会被设置为 SELECTOR_CODE。 段描述符加载：CPU 会根据 CS 中的段选择子从 GDT 中找到对应的代码段描述符 EIP 寄存器会被设置为 p_mode_start 初始化ds es ss寄存器， sp堆栈指针，gs寄存器（显存指针） 加载内核（内核位于第9扇区）到 0x70000 创建页目录和页表# 内核地址映射到虚拟地址3G以上 虚拟地址0xc0000000以上的1MB地址映射到物理地址1MB之内 物理地址范围 0～0x3fffff 之间的物理页，这也就是虚拟地址 0x0～0x3fffff和虚拟地址 0xc0000000～0xc03fffff 对应的物理页 页目录表在内存中的起始位置——从1M开始的位置 1M开始的4KB置为0，将页目录表初始化 第一个页表位置位于也目录上方，页目录位置&#43;0x1000(4kb) 第一个页表位置写入第0号和第768号(地址偏移0xc00)页目录项 0xc0000000 的高 10 位是 0x300，即十进制的 768 页目录自身地址写入最后一个页目录项 紧挨着的第二个页表第三个到第254个页表地址依次写入页目录项的796-1026号位置 初始化第一个页表 将低端地址1M(0x1000,4096)空间的256个物理页地址依次填写到页表项中 4kb=0x1000=4*1024=4096 1Mb= 0x100000">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="766">
+
+<title>代码架构 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E4%BB%A3%E7%A0%81%E6%9E%B6%E6%9E%84/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>代码架构</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#内存布局">内存布局</a>
+      <ul>
+        <li><a href="#低端1m可用内存">低端1M可用内存</a></li>
+      </ul>
+    </li>
+    <li><a href="#流程">流程</a></li>
+    <li><a href="#boot">boot</a>
+      <ul>
+        <li><a href="#mbr">mbr</a></li>
+        <li><a href="#loder">loder</a></li>
+        <li><a href="#进入保护模式">进入保护模式</a></li>
+        <li><a href="#创建页目录和页表">创建页目录和页表</a></li>
+        <li><a href="#进入内核">进入内核</a></li>
+        <li><a href="#标号定义">标号定义</a></li>
+        <li><a href="#gdt表数据定义">GDT表数据定义</a></li>
+      </ul>
+    </li>
+    <li><a href="#kernel">kernel</a>
+      <ul>
+        <li><a href="#kernelmemoryc">kernel\memory.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#device">device</a>
+      <ul>
+        <li><a href="#deviceidec">device\ide.c</a></li>
+        <li><a href="#devicekeyboardc">device\keyboard.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#键盘扫描码有三套">键盘扫描码有三套</a></li>
+    <li><a href="#fs">fs</a></li>
+    <li><a href="#lib">lib</a></li>
+    <li><a href="#shell">shell</a></li>
+    <li><a href="#thread">thread</a></li>
+    <li><a href="#userprog">userprog</a></li>
+    <li><a href="#command">command</a></li>
+    <li><a href="#典型函数">典型函数</a>
+      <ul>
+        <li><a href="#assertcondition">ASSERT(CONDITION)</a></li>
+        <li><a href="#int-printfconst-char-format-">int printf(const char *format, &hellip;)</a></li>
+        <li><a href="#系统调用">系统调用</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>代码架构</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="内存布局">内存布局<a class="anchor" href="#%e5%86%85%e5%ad%98%e5%b8%83%e5%b1%80">#</a></h1>
+<h2 id="低端1m可用内存">低端1M可用内存<a class="anchor" href="#%e4%bd%8e%e7%ab%af1m%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98">#</a></h2>
+<p>结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG">
+    <img src="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG" 
+         alt="低端1M可用内存" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="流程">流程<a class="anchor" href="#%e6%b5%81%e7%a8%8b">#</a></h1>
+<p>bios -&gt; mbr - &gt;loder -&gt;kernel</p>
+<ul>
+<li>BIOS将第一扇区（mbr）加载到0x7c00内存位置后跳转的0x7c00处执行。</li>
+<li>mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 +0x300处执行
+<ul>
+<li>0x500～0x7BFF 和 0x7E00～9FBFF 这两段内存区域可用。</li>
+<li>loader 放在低处，多留出一些空间给内核</li>
+<li>将 loader 的加载地址选为 0x900。为什么不是 0x500，这个多省空间？还是预留出一定空间吧 ， 彼此隔开远一点心里才踏实</li>
+</ul>
+</li>
+<li>loder创建GDT表，进入保护模式，加载内核（内核位于第9扇区）到 0x70000，创建页目录 ，初始化内核，进入内核
+<ul>
+<li>随意取的，是觉得 0x70000～0x9fbff 有 0x2fbff=190KB 字节的空间，而我们的内核不超过 100KB，</li>
+</ul>
+</li>
+</ul>
+<h1 id="boot">boot<a class="anchor" href="#boot">#</a></h1>
+<h2 id="mbr">mbr<a class="anchor" href="#mbr">#</a></h2>
+<blockquote class='book-hint '>
+<p>mbr读取第二、三、四、五扇区(loder)加载到0x900内存位置后跳转到 0x900 + 0x300处执行</p>
+</blockquote><h2 id="loder">loder<a class="anchor" href="#loder">#</a></h2>
+<ul>
+<li>位于硬盘第二扇区，被加载到0x500内存位置</li>
+<li>读取内存布局存在标号total_mem_bytes的内存位置</li>
+</ul>
+<h2 id="进入保护模式">进入保护模式<a class="anchor" href="#%e8%bf%9b%e5%85%a5%e4%bf%9d%e6%8a%a4%e6%a8%a1%e5%bc%8f">#</a></h2>
+<pre><code>- 打开A20
+- 加载GDT ，lgdt [gdt_ptr]
+- cr0第0位置1，打开分页
+</code></pre>
+<ul>
+<li>跳转，刷新流水线
+<ul>
+<li>jmp SELECTOR_CODE:p_mode_start
+<ul>
+<li>值的更新：CS 寄存器会被设置为 SELECTOR_CODE。</li>
+<li>段描述符加载：CPU 会根据 CS 中的段选择子从 GDT 中找到对应的代码段描述符</li>
+<li>EIP 寄存器会被设置为 p_mode_start</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>初始化ds es ss寄存器， sp堆栈指针，gs寄存器（显存指针）</li>
+<li>加载内核（内核位于第9扇区）到 0x70000</li>
+</ul>
+<h2 id="创建页目录和页表">创建页目录和页表<a class="anchor" href="#%e5%88%9b%e5%bb%ba%e9%a1%b5%e7%9b%ae%e5%bd%95%e5%92%8c%e9%a1%b5%e8%a1%a8">#</a></h2>
+<ul>
+<li>内核地址映射到虚拟地址3G以上
+<ul>
+<li>虚拟地址0xc0000000以上的1MB地址映射到物理地址1MB之内</li>
+<li>物理地址范围 0～0x3fffff 之间的物理页，这也就是虚拟地址 0x0～0x3fffff和虚拟地址 0xc0000000～0xc03fffff 对应的物理页</li>
+</ul>
+</li>
+<li>页目录表在内存中的起始位置——从1M开始的位置</li>
+<li>1M开始的4KB置为0，将页目录表初始化
+<ul>
+<li>第一个页表位置位于也目录上方，页目录位置+0x1000(4kb)</li>
+<li>第一个页表位置写入第0号和第768号(地址偏移0xc00)页目录项
+<ul>
+<li>0xc0000000 的高 10 位是 0x300，即十进制的 768</li>
+</ul>
+</li>
+<li>页目录自身地址写入最后一个页目录项</li>
+<li>紧挨着的第二个页表第三个到第254个页表地址依次写入页目录项的796-1026号位置</li>
+</ul>
+</li>
+<li>初始化第一个页表
+<ul>
+<li>将低端地址1M(0x1000,4096)空间的256个物理页地址依次填写到页表项中
+<ul>
+<li>4kb=0x1000=4*1024=4096  1Mb= 0x100000</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e5%9b%be%e7%89%87/%e9%a1%b5%e8%a1%a8%e5%88%9d%e5%a7%8b%e5%8c%96.PNG">
+    <img src="/images/%e5%9b%be%e7%89%87/%e9%a1%b5%e8%a1%a8%e5%88%9d%e5%a7%8b%e5%8c%96.PNG" 
+         alt="低端1M可用内存" 
+         />
+  </a>
+</div>
+</p>
+<ul>
+<li>更新GDT描述符中视频段描述符的内容</li>
+<li>将gdt的基址加上0xc0000000使其成为内核所在的高地址</li>
+<li>在开启分页后,用gdt新的地址重新加载</li>
+</ul>
+<h2 id="进入内核">进入内核<a class="anchor" href="#%e8%bf%9b%e5%85%a5%e5%86%85%e6%a0%b8">#</a></h2>
+<pre><code>- 初始化内核
+    - 通过elf格式解析kernel.bin
+- 跳转到内核入口虚拟地址 0xc0001500
+    - 编译时候指定入口虚拟地址为0xc0001500
+</code></pre>
+<h2 id="标号定义">标号定义<a class="anchor" href="#%e6%a0%87%e5%8f%b7%e5%ae%9a%e4%b9%89">#</a></h2>
+<ul>
+<li>total_mem_bytes 标号位于文件头偏移0x200位置用来存储内存结构</li>
+<li>loader_start 标号位于文件头偏移0x300位置，是loder程序入口</li>
+</ul>
+<h2 id="gdt表数据定义">GDT表数据定义<a class="anchor" href="#gdt%e8%a1%a8%e6%95%b0%e6%8d%ae%e5%ae%9a%e4%b9%89">#</a></h2>
+<ol>
+<li>构建gdt及其内部的描述符,第一个全局描述符表设置为空不使用</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>GDT_BASE:                                               
+</span></span><span style="display:flex;"><span>    dd <span style="color:#ae81ff">0x00000000</span> 
+</span></span><span style="display:flex;"><span>	dd <span style="color:#ae81ff">0x00000000</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>CODE_DESC:  
+</span></span><span style="display:flex;"><span>    dd <span style="color:#ae81ff">0x0000FFFF</span> 
+</span></span><span style="display:flex;"><span>	dd DESC_CODE_HIGH4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>DATA_STACK_DESC:  
+</span></span><span style="display:flex;"><span>    dd <span style="color:#ae81ff">0x0000FFFF</span>
+</span></span><span style="display:flex;"><span>    dd DESC_DATA_HIGH4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>VIDEO_DESC: 
+</span></span><span style="display:flex;"><span>    dd <span style="color:#ae81ff">0x80000007</span>	                                    ;limit<span style="color:#f92672">=</span>(<span style="color:#ae81ff">0xbffff</span><span style="color:#f92672">-</span><span style="color:#ae81ff">0xb8000</span>)<span style="color:#f92672">/</span><span style="color:#ae81ff">4</span>k<span style="color:#f92672">=</span><span style="color:#ae81ff">0x7</span>
+</span></span><span style="display:flex;"><span>    dd DESC_VIDEO_HIGH4                                 ; <span style="color:#960050;background-color:#1e0010">此时</span>dpl已改为0</span></span></code></pre></div><ol start="2">
+<li>段选择子数据构造</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>SELECTOR_CODE <span style="color:#a6e22e">equ</span> (<span style="color:#ae81ff">0x0001</span><span style="color:#f92672">&lt;&lt;</span><span style="color:#ae81ff">3</span>) <span style="color:#f92672">+</span> TI_GDT <span style="color:#f92672">+</span> RPL0       ; <span style="color:#960050;background-color:#1e0010">相当于</span>(CODE_DESC <span style="color:#f92672">-</span> GDT_BASE)<span style="color:#f92672">/</span><span style="color:#ae81ff">8</span> <span style="color:#f92672">+</span> TI_GDT <span style="color:#f92672">+</span> RPL0
+</span></span><span style="display:flex;"><span>SELECTOR_DATA <span style="color:#a6e22e">equ</span> (<span style="color:#ae81ff">0x0002</span><span style="color:#f92672">&lt;&lt;</span><span style="color:#ae81ff">3</span>) <span style="color:#f92672">+</span> TI_GDT <span style="color:#f92672">+</span> RPL0	    ; <span style="color:#960050;background-color:#1e0010">同上</span>
+</span></span><span style="display:flex;"><span>SELECTOR_VIDEO <span style="color:#a6e22e">equ</span> (<span style="color:#ae81ff">0x0003</span><span style="color:#f92672">&lt;&lt;</span><span style="color:#ae81ff">3</span>) <span style="color:#f92672">+</span> TI_GDT <span style="color:#f92672">+</span> RPL0	    ; <span style="color:#960050;background-color:#1e0010">同上</span> 
+</span></span></code></pre></div><ol start="3">
+<li>gdt寄存器加载数据构造</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>gdt_ptr dw GDT_LIMIT                                    ;<span style="color:#960050;background-color:#1e0010">定义加载进入</span>GDTR的数据<span style="color:#960050;background-color:#1e0010">，前</span><span style="color:#ae81ff">2</span><span style="color:#960050;background-color:#1e0010">字节是</span>gdt界限<span style="color:#960050;background-color:#1e0010">，后</span><span style="color:#ae81ff">4</span><span style="color:#960050;background-color:#1e0010">字节是</span>gdt起始地址<span style="color:#960050;background-color:#1e0010">，</span>
+</span></span><span style="display:flex;"><span>	    dd  GDT_BASE</span></span></code></pre></div><h1 id="kernel">kernel<a class="anchor" href="#kernel">#</a></h1>
+<ul>
+<li>
+<p>由 kernel.s和众多.c文件编译成.o文件链接而成.bin文件放在第九扇区</p>
+</li>
+<li>
+<p>init_all</p>
+<ul>
+<li>idt_init();   //初始化中断</li>
+<li>mem_init();	  // 初始化内存管理系统</li>
+<li>thread_init(); // 初始化线程相关结构</li>
+<li>timer_init();  //初始化定时器</li>
+<li>console_init(); //控制台初始化</li>
+<li>keyboard_init();  // 键盘初始化</li>
+<li>tss_init();       // tss初始化</li>
+<li>syscall_init();   // 初始化系统调用</li>
+<li>intr_enable();    // 后面的ide_init需要打开中断</li>
+<li>ide_init();	     // 初始化硬盘</li>
+<li>filesys_init();   // 初始化文件系统</li>
+</ul>
+</li>
+<li>
+<p>thread_start(&ldquo;consumer_a&rdquo;, 31, k_thread_a, &quot; A_&quot;); //创建线程A</p>
+</li>
+<li>
+<p>thread_start(&ldquo;consumer_b&rdquo;, 31, k_thread_b, &quot; B_&quot;); //创建线程B</p>
+</li>
+<li>
+<p>intr_enable(); //开中断</p>
+</li>
+</ul>
+<h2 id="kernelmemoryc">kernel\memory.c<a class="anchor" href="#kernelmemoryc">#</a></h2>
+<blockquote class='book-hint '>
+<p>内存管理</p>
+</blockquote><ul>
+<li>
+<p>PDE_IDX</p>
+<ul>
+<li>#define PDE_IDX(addr) ((addr &amp; 0xffc00000) &raquo; 22)</li>
+<li>虚拟地址高10位，PDE（Page Directory Entry）页目录条目索引</li>
+</ul>
+</li>
+<li>
+<p>PTE_IDX</p>
+<ul>
+<li>#define PTE_IDX(addr) ((addr &amp; 0x003ff000) &raquo; 12)</li>
+<li>虚拟地址中10位，PTE（Page Table Entry ）页表条目索引</li>
+</ul>
+</li>
+<li>
+<p>pde_ptr</p>
+<ul>
+<li>构造虚拟地址vaddr对应的pde指针</li>
+<li>pde_ptr经过CPU的段部件，页部件处理后得到PDE地址</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span> <span style="color:#a6e22e">pde_ptr</span>(<span style="color:#66d9ef">uint32_t</span> vaddr) {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">/* 0xfffff是用来访问到页表本身所在的地址 */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span> pde <span style="color:#f92672">=</span> (<span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span>)((<span style="color:#ae81ff">0xfffff000</span>) <span style="color:#f92672">+</span> <span style="color:#a6e22e">PDE_IDX</span>(vaddr) <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> pde;
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div></li>
+<li>
+<p>pte_ptr</p>
+<ul>
+<li>构造虚拟地址vaddr对应的pte指针</li>
+<li>pte_ptr经过CPU的段部件，页部件处理后得到PTE地址</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span> <span style="color:#a6e22e">pte_ptr</span>(<span style="color:#66d9ef">uint32_t</span> vaddr) {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">/* 先访问到页表自己 + 再用页目录项pde(页目录内页表的索引)做为pte的索引访问到页表 + 再用pte的索引做为页内偏移*/</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span> pte <span style="color:#f92672">=</span> (<span style="color:#66d9ef">uint32_t</span><span style="color:#f92672">*</span>)(<span style="color:#ae81ff">0xffc00000</span> <span style="color:#f92672">+</span> ((vaddr <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffc00000</span>) <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">10</span>) <span style="color:#f92672">+</span> <span style="color:#a6e22e">PTE_IDX</span>(vaddr) <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> pte;
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div></li>
+<li>
+<p>page_table_add</p>
+<ul>
+<li>页表中添加数据，完成虚拟地址物理地址映射
+<ul>
+<li>通过pte_ptr的到虚拟地址的页表指针</li>
+<li>将物理地址写入页表指针指向的地址。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>mem_pool_init</p>
+</li>
+</ul>
+<blockquote class='book-hint '>
+<p>传入从BIOS获取的可用内存大小,初始化用来内存管理的位图</p>
+</blockquote><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#define MEM_BITMAP_BASE 0xc009a000
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">-</span> used_mem <span style="color:#f92672">=</span> page_table_size <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x100000</span>;	  <span style="color:#75715e">// 已使用内存 = 1MB + 256个页表
+</span></span></span><span style="display:flex;"><span><span style="color:#f92672">-</span> free_mem <span style="color:#f92672">=</span> all_mem <span style="color:#f92672">-</span> used_mem;    <span style="color:#75715e">//剩余可用内存
+</span></span></span><span style="display:flex;"><span><span style="color:#f92672">-</span> all_free_pages <span style="color:#f92672">=</span> free_mem <span style="color:#f92672">/</span> PG_SIZE; <span style="color:#75715e">//剩余可用内存页数量
+</span></span></span><span style="display:flex;"><span><span style="color:#f92672">-</span> kernel_free_pages <span style="color:#f92672">=</span> all_free_pages <span style="color:#f92672">/</span> <span style="color:#ae81ff">2</span> <span style="color:#960050;background-color:#1e0010">，</span> user_free_pages <span style="color:#f92672">=</span> all_free_pages <span style="color:#f92672">-</span> kernel_free_pages;  <span style="color:#75715e">//一半分给用户一半给内核
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">-</span>  kbm_length <span style="color:#f92672">=</span> kernel_free_pages <span style="color:#f92672">/</span> <span style="color:#ae81ff">8</span>;			  <span style="color:#75715e">// 内核物理内存池的位图长度,位图中的一位表示一页,以字节为单位
+</span></span></span><span style="display:flex;"><span><span style="color:#f92672">-</span>  ubm_length <span style="color:#f92672">=</span> user_free_pages <span style="color:#f92672">/</span> <span style="color:#ae81ff">8</span>;			  <span style="color:#75715e">// 用户物理内存池的位图长度.
+</span></span></span><span style="display:flex;"><span>    <span style="color:#f92672">-</span> <span style="color:#960050;background-color:#1e0010">一个</span>bit表示一个字节<span style="color:#960050;background-color:#1e0010">，一个</span>bit表示一页
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">-</span>  kp_start <span style="color:#f92672">=</span> used_mem;				  <span style="color:#75715e">// Kernel Pool start,内核使用的物理内存池的起始地址
+</span></span></span><span style="display:flex;"><span><span style="color:#f92672">-</span>  up_start <span style="color:#f92672">=</span> kp_start <span style="color:#f92672">+</span> kernel_free_pages <span style="color:#f92672">*</span> PG_SIZE;	  <span style="color:#75715e">// User Pool start,用户使用的物理内存池的起始地址
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>kernel_pool.phy_addr_start <span style="color:#f92672">=</span> kp_start;       <span style="color:#75715e">//赋值给内核使用的物理内存池的起始地址
+</span></span></span><span style="display:flex;"><span>user_pool.phy_addr_start   <span style="color:#f92672">=</span> up_start;       <span style="color:#75715e">//赋值给用户使用的物理内存池的起始地址
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>kernel_pool.pool_size <span style="color:#f92672">=</span> kernel_free_pages <span style="color:#f92672">*</span> PG_SIZE;     <span style="color:#75715e">//赋值给内核使用的物理内存池的总大小
+</span></span></span><span style="display:flex;"><span>user_pool.pool_size	 <span style="color:#f92672">=</span> user_free_pages <span style="color:#f92672">*</span> PG_SIZE;       <span style="color:#75715e">//赋值给用户使用的物理内存池的总大小
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>kernel_pool.pool_bitmap.btmp_bytes_len <span style="color:#f92672">=</span> kbm_length;     <span style="color:#75715e">//赋值给管理内核使用的物理内存池的位图长度
+</span></span></span><span style="display:flex;"><span>user_pool.pool_bitmap.btmp_bytes_len	  <span style="color:#f92672">=</span> ubm_length;   <span style="color:#75715e">//赋值给管理用户使用的物理内存池的位图长度
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 32M内存占用的位图是2k.内核内存池的位图先定在MEM_BITMAP_BASE(0xc009a000)处.
+</span></span></span><span style="display:flex;"><span>   	kernel_pool.pool_bitmap.bits <span style="color:#f92672">=</span> (<span style="color:#66d9ef">void</span><span style="color:#f92672">*</span>)MEM_BITMAP_BASE;      <span style="color:#75715e">//管理内核使用的物理内存池的位图起始地址
+</span></span></span><span style="display:flex;"><span>							       
+</span></span><span style="display:flex;"><span><span style="color:#75715e">/* 用户内存池的位图紧跟在内核内存池位图之后 */</span>
+</span></span><span style="display:flex;"><span>   	user_pool.pool_bitmap.bits <span style="color:#f92672">=</span> (<span style="color:#66d9ef">void</span><span style="color:#f92672">*</span>)(MEM_BITMAP_BASE <span style="color:#f92672">+</span> kbm_length);     <span style="color:#75715e">//管理用户使用的物理内存池的位图起始地址
+</span></span></span></code></pre></div><h3 id="malloc_page">malloc_page<a class="anchor" href="#malloc_page">#</a></h3>
+<ol>
+<li>通过vaddr_get在虚拟内存池中申请虚拟地址</li>
+<li>通过palloc在物理内存池中申请物理页</li>
+<li>通过page_table_add将以上得到的虚拟地址和物理地址在页表中完成映射</li>
+</ol>
+<h1 id="device">device<a class="anchor" href="#device">#</a></h1>
+<h2 id="deviceidec">device\ide.c<a class="anchor" href="#deviceidec">#</a></h2>
+<blockquote class='book-hint '>
+<p>硬盘驱动</p>
+</blockquote><h2 id="devicekeyboardc">device\keyboard.c<a class="anchor" href="#devicekeyboardc">#</a></h2>
+<blockquote class='book-hint '>
+<p>键盘驱动</p>
+</blockquote><ul>
+<li>键盘扫描码，每个案件对应的数值
+<ul>
+<li>扫描码由按下的码（通码），弹起来的吗（断码）组成
+<ul>
+<li>第一套扫描码的通码断码是一个字节，断码=0x80+通码
+<ul>
+<li>第二套扫描码中的断码是在通码的前面加0xf0一共两个字节</li>
+<li>8042将第二套通码和断码转换为第一套通码和断码</li>
+</ul>
+</li>
+<li>-第一套最高位的值表示按键状态</li>
+</ul>
+</li>
+<li>有些后下的扩展按键前面加有一个字节前缀比如0xe0</li>
+<li></li>
+</ul>
+</li>
+<li>按键或者松开会触发一次中断。</li>
+</ul>
+<h1 id="键盘扫描码有三套">键盘扫描码有三套<a class="anchor" href="#%e9%94%ae%e7%9b%98%e6%89%ab%e6%8f%8f%e7%a0%81%e6%9c%89%e4%b8%89%e5%a5%97">#</a></h1>
+<ul>
+<li>兼容设计，将其他套键盘扫描码转换为第一套的扫描码</li>
+<li></li>
+</ul>
+<h1 id="fs">fs<a class="anchor" href="#fs">#</a></h1>
+<blockquote class='book-hint '>
+<p>文件系统</p>
+</blockquote><ul>
+<li>硬盘所有分区构造文件系统</li>
+<li>默认挂载分区是sdb1
+<ul>
+<li>第二块硬盘的第1个分区</li>
+<li>把文件系统结构加载到内存</li>
+</ul>
+</li>
+</ul>
+<h1 id="lib">lib<a class="anchor" href="#lib">#</a></h1>
+<blockquote class='book-hint '>
+<p>公共库</p>
+</blockquote><h1 id="shell">shell<a class="anchor" href="#shell">#</a></h1>
+<h1 id="thread">thread<a class="anchor" href="#thread">#</a></h1>
+<blockquote class='book-hint '>
+<p>线程</p>
+</blockquote><h1 id="userprog">userprog<a class="anchor" href="#userprog">#</a></h1>
+<blockquote class='book-hint '>
+<p>用户程序</p>
+</blockquote><h1 id="command">command<a class="anchor" href="#command">#</a></h1>
+<blockquote class='book-hint '>
+<p>外部程序，需要加载到文件系统。</p>
+</blockquote><h1 id="典型函数">典型函数<a class="anchor" href="#%e5%85%b8%e5%9e%8b%e5%87%bd%e6%95%b0">#</a></h1>
+<h2 id="assertcondition">ASSERT(CONDITION)<a class="anchor" href="#assertcondition">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">panic_spin</span>(<span style="color:#66d9ef">char</span><span style="color:#f92672">*</span> filename, <span style="color:#66d9ef">int</span> line, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">*</span> func, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span><span style="color:#f92672">*</span> condition);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">//...是可变参数，也就是随便你传多少个参数，然后原封不动地传到__VA_ARGS_那里去
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//__FILE__,__LINE__,__func__是预定义宏，代表这个宏所在的文件名，行数，与函数名字，编译器处理
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define PANIC(...) panic_spin (__FILE__, __LINE__, __func__, __VA_ARGS__)
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">//如果定义了NDEBUG,那么下面定义的ASSERT就是个空。这样我们可以便捷的让所有ASSERT宏失效。因为有时候断言太多，程序会运行
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//很慢。我们如果不想要ASSERT起作用，编译时用gcc-DNDEBUG就行了
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#ifdef NDEBUG
+</span></span></span><span style="display:flex;"><span>   <span style="color:#75715e">#define ASSERT(CONDITION) ((void)0)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#else
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define ASSERT(CONDITION)   \
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">    if(CONDITION){}         \
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">    else{PANIC(#CONDITION);}    </span><span style="color:#75715e">//加#后，传入的参数变成字符串
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#endif  </span><span style="color:#75715e">//结束#ifdef NDEBUG
+</span></span></span></code></pre></div><ul>
+<li>PANIC(&hellip;)，省略号中的所有参数会被转换成一整个字符串传入到_VA_ARGS__</li>
+</ul>
+<h2 id="int-printfconst-char-format-">int printf(const char *format, &hellip;)<a class="anchor" href="#int-printfconst-char-format-">#</a></h2>
+<blockquote class='book-hint '>
+<p>示例：printf(&ldquo;cat: open: open %s failed\n&rdquo;, argv[1]);</p>
+</blockquote><ul>
+<li>ap 指向函数调用参数栈中第一个参数的地址。</li>
+<li>遍历入参第一个字符串内%的位置得到类型，通过va_arg(ap, t)拿到对应参数的值，将这个值放入buf</li>
+<li>其他地方的字符原样复制到buf</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#define va_start(ap, v) ap = (va_list) &amp; v </span><span style="color:#75715e">// 把ap指向第一个固定参数v
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define va_arg(ap, t) *((t *)(ap += 4))    </span><span style="color:#75715e">// ap指向下一个参数并返回其值
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define va_end(ap) ap = NULL               </span><span style="color:#75715e">// 清除ap
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">uint32_t</span> <span style="color:#a6e22e">printf</span>(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>format, ...)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    va_list args;
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">va_start</span>(args, format); <span style="color:#75715e">// 使args指向format
+</span></span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">1024</span>] <span style="color:#f92672">=</span> {<span style="color:#ae81ff">0</span>};   <span style="color:#75715e">// 用于存储拼接后的字符串
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">vsprintf</span>(buf, format, args);
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">va_end</span>(args);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">write</span>(<span style="color:#ae81ff">1</span>, buf, <span style="color:#a6e22e">strlen</span>(buf));
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">/* 将参数ap按照格式format输出到字符串str,并返回替换后str长度 */</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">uint32_t</span> <span style="color:#a6e22e">vsprintf</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>str, <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>format, va_list ap)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>buf_ptr <span style="color:#f92672">=</span> str;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">const</span> <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>index_ptr <span style="color:#f92672">=</span> format;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>index_ptr;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int32_t</span> arg_int;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>arg_str;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> (index_char)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (index_char <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#39;%&#39;</span>)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">*</span>(buf_ptr<span style="color:#f92672">++</span>) <span style="color:#f92672">=</span> index_char;
+</span></span><span style="display:flex;"><span>            index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">continue</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr); <span style="color:#75715e">// 得到%后面的字符
+</span></span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">switch</span> (index_char)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;s&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            arg_str <span style="color:#f92672">=</span> <span style="color:#a6e22e">va_arg</span>(ap, <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">strcpy</span>(buf_ptr, arg_str);
+</span></span><span style="display:flex;"><span>            buf_ptr <span style="color:#f92672">+=</span> <span style="color:#a6e22e">strlen</span>(arg_str);
+</span></span><span style="display:flex;"><span>            index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;c&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">*</span>(buf_ptr<span style="color:#f92672">++</span>) <span style="color:#f92672">=</span> <span style="color:#a6e22e">va_arg</span>(ap, <span style="color:#66d9ef">char</span>);
+</span></span><span style="display:flex;"><span>            index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;d&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            arg_int <span style="color:#f92672">=</span> <span style="color:#a6e22e">va_arg</span>(ap, <span style="color:#66d9ef">int</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> (arg_int <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                arg_int <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">-</span> arg_int; <span style="color:#75715e">/* 若是负数, 将其转为正数后,再正数前面输出个负号&#39;-&#39;. */</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">*</span>buf_ptr<span style="color:#f92672">++</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;-&#39;</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">itoa</span>(arg_int, <span style="color:#f92672">&amp;</span>buf_ptr, <span style="color:#ae81ff">10</span>);
+</span></span><span style="display:flex;"><span>            index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;x&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            arg_int <span style="color:#f92672">=</span> <span style="color:#a6e22e">va_arg</span>(ap, <span style="color:#66d9ef">int</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">itoa</span>(arg_int, <span style="color:#f92672">&amp;</span>buf_ptr, <span style="color:#ae81ff">16</span>);
+</span></span><span style="display:flex;"><span>            index_char <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">++</span>index_ptr); <span style="color:#75715e">// 跳过格式字符并更新index_char
+</span></span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">strlen</span>(str);
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><h2 id="系统调用">系统调用<a class="anchor" href="#%e7%b3%bb%e7%bb%9f%e8%b0%83%e7%94%a8">#</a></h2>
+<pre tabindex="0"><code>#define _syscall2(NUMBER, ARG1, ARG2) ({    \
+    int retval;                             \
+    asm volatile(                           \
+        &#34;int $0x80&#34;                         \
+        : &#34;=a&#34;(retval)                      \
+        : &#34;a&#34;(NUMBER), &#34;b&#34;(ARG1), &#34;c&#34;(ARG2) \
+        : &#34;memory&#34;);                        \
+    retval;                                 \
+})
+
+
+核心原理
+中断触发：int $0x80 指令触发软件中断，CPU 切换到内核态，执行系统调用处理程序。
+参数传递：
+eax：系统调用号（NUMBER）。
+ebx：第一个参数（ARG1）。
+ecx：第二个参数（ARG2）。
+若有更多参数，依次使用 edx（第 3 个）、esi（第 4 个）、edi（第 5 个）、ebp（第 6 个）。
+返回值：eax 寄存器存储系统调用结果（成功时为非负数值，失败时为 -1，错误码存入 errno）</code></pre></div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/os%E5%86%85%E6%A0%B8%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>OS内核数据结构</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/" class="flex align-center">
+      <span>操作系统真相还原</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#内存布局">内存布局</a>
+      <ul>
+        <li><a href="#低端1m可用内存">低端1M可用内存</a></li>
+      </ul>
+    </li>
+    <li><a href="#流程">流程</a></li>
+    <li><a href="#boot">boot</a>
+      <ul>
+        <li><a href="#mbr">mbr</a></li>
+        <li><a href="#loder">loder</a></li>
+        <li><a href="#进入保护模式">进入保护模式</a></li>
+        <li><a href="#创建页目录和页表">创建页目录和页表</a></li>
+        <li><a href="#进入内核">进入内核</a></li>
+        <li><a href="#标号定义">标号定义</a></li>
+        <li><a href="#gdt表数据定义">GDT表数据定义</a></li>
+      </ul>
+    </li>
+    <li><a href="#kernel">kernel</a>
+      <ul>
+        <li><a href="#kernelmemoryc">kernel\memory.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#device">device</a>
+      <ul>
+        <li><a href="#deviceidec">device\ide.c</a></li>
+        <li><a href="#devicekeyboardc">device\keyboard.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#键盘扫描码有三套">键盘扫描码有三套</a></li>
+    <li><a href="#fs">fs</a></li>
+    <li><a href="#lib">lib</a></li>
+    <li><a href="#shell">shell</a></li>
+    <li><a href="#thread">thread</a></li>
+    <li><a href="#userprog">userprog</a></li>
+    <li><a href="#command">command</a></li>
+    <li><a href="#典型函数">典型函数</a>
+      <ul>
+        <li><a href="#assertcondition">ASSERT(CONDITION)</a></li>
+        <li><a href="#int-printfconst-char-format-">int printf(const char *format, &hellip;)</a></li>
+        <li><a href="#系统调用">系统调用</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

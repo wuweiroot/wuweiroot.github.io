@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="串行总线# 是否需要时钟线# 异步通信# UART
+同步通信# I2C SPI pcei
+数据传输方向# 单工# 半双工# I2C
+全双工# UART SPI PCIE
+并行总线# SCSI：SCSI（Small Computer System Interface）是一种用于连接计算机和外部设备的并行总线接口，主要用于连接硬盘驱动器、光驱、打印机等外部设备。 Parallel ATA：Parallel ATA（PATA）是一种用于连接计算机主板和硬盘驱动器、光驱等设备的并行总线接口。
+IEEE 1284：IEEE 1284是一种用于连接计算机和打印机的并行接口标准，常见于早期的打印机连接方式。
+无线通信# 红外线# 蓝牙# wifi#">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/%E6%80%BB%E7%BA%BF/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="通信总线">
+  <meta property="og:description" content="串行总线# 是否需要时钟线# 异步通信# UART
+同步通信# I2C SPI pcei
+数据传输方向# 单工# 半双工# I2C
+全双工# UART SPI PCIE
+并行总线# SCSI：SCSI（Small Computer System Interface）是一种用于连接计算机和外部设备的并行总线接口，主要用于连接硬盘驱动器、光驱、打印机等外部设备。 Parallel ATA：Parallel ATA（PATA）是一种用于连接计算机主板和硬盘驱动器、光驱等设备的并行总线接口。
+IEEE 1284：IEEE 1284是一种用于连接计算机和打印机的并行接口标准，常见于早期的打印机连接方式。
+无线通信# 红外线# 蓝牙# wifi#">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="通信总线">
+  <meta itemprop="description" content="串行总线# 是否需要时钟线# 异步通信# UART
+同步通信# I2C SPI pcei
+数据传输方向# 单工# 半双工# I2C
+全双工# UART SPI PCIE
+并行总线# SCSI：SCSI（Small Computer System Interface）是一种用于连接计算机和外部设备的并行总线接口，主要用于连接硬盘驱动器、光驱、打印机等外部设备。 Parallel ATA：Parallel ATA（PATA）是一种用于连接计算机主板和硬盘驱动器、光驱等设备的并行总线接口。
+IEEE 1284：IEEE 1284是一种用于连接计算机和打印机的并行接口标准，常见于早期的打印机连接方式。
+无线通信# 红外线# 蓝牙# wifi#">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="31">
+
+<title>通信总线 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/%E6%80%BB%E7%BA%BF/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>通信总线</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#串行总线">串行总线</a>
+      <ul>
+        <li><a href="#是否需要时钟线">是否需要时钟线</a></li>
+        <li><a href="#数据传输方向">数据传输方向</a></li>
+      </ul>
+    </li>
+    <li><a href="#并行总线">并行总线</a></li>
+    <li><a href="#无线通信">无线通信</a>
+      <ul>
+        <li><a href="#红外线">红外线</a></li>
+        <li><a href="#蓝牙">蓝牙</a></li>
+        <li><a href="#wifi">wifi</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>通信总线</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="串行总线">串行总线<a class="anchor" href="#%e4%b8%b2%e8%a1%8c%e6%80%bb%e7%ba%bf">#</a></h1>
+<h2 id="是否需要时钟线">是否需要时钟线<a class="anchor" href="#%e6%98%af%e5%90%a6%e9%9c%80%e8%a6%81%e6%97%b6%e9%92%9f%e7%ba%bf">#</a></h2>
+<h3 id="异步通信">异步通信<a class="anchor" href="#%e5%bc%82%e6%ad%a5%e9%80%9a%e4%bf%a1">#</a></h3>
+<p>UART</p>
+<h3 id="同步通信">同步通信<a class="anchor" href="#%e5%90%8c%e6%ad%a5%e9%80%9a%e4%bf%a1">#</a></h3>
+<p>I2C SPI pcei</p>
+<h2 id="数据传输方向">数据传输方向<a class="anchor" href="#%e6%95%b0%e6%8d%ae%e4%bc%a0%e8%be%93%e6%96%b9%e5%90%91">#</a></h2>
+<h3 id="单工">单工<a class="anchor" href="#%e5%8d%95%e5%b7%a5">#</a></h3>
+<h3 id="半双工">半双工<a class="anchor" href="#%e5%8d%8a%e5%8f%8c%e5%b7%a5">#</a></h3>
+<p>I2C</p>
+<h3 id="全双工">全双工<a class="anchor" href="#%e5%85%a8%e5%8f%8c%e5%b7%a5">#</a></h3>
+<p>UART SPI PCIE</p>
+<h1 id="并行总线">并行总线<a class="anchor" href="#%e5%b9%b6%e8%a1%8c%e6%80%bb%e7%ba%bf">#</a></h1>
+<p>SCSI：SCSI（Small Computer System Interface）是一种用于连接计算机和外部设备的并行总线接口，主要用于连接硬盘驱动器、光驱、打印机等外部设备。
+Parallel ATA：Parallel ATA（PATA）是一种用于连接计算机主板和硬盘驱动器、光驱等设备的并行总线接口。</p>
+<p>IEEE 1284：IEEE 1284是一种用于连接计算机和打印机的并行接口标准，常见于早期的打印机连接方式。</p>
+<h1 id="无线通信">无线通信<a class="anchor" href="#%e6%97%a0%e7%ba%bf%e9%80%9a%e4%bf%a1">#</a></h1>
+<h2 id="红外线">红外线<a class="anchor" href="#%e7%ba%a2%e5%a4%96%e7%ba%bf">#</a></h2>
+<h2 id="蓝牙">蓝牙<a class="anchor" href="#%e8%93%9d%e7%89%99">#</a></h2>
+<h2 id="wifi">wifi<a class="anchor" href="#wifi">#</a></h2>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E7%A1%AC%E7%9B%98%E5%8D%8F%E8%AE%AE%E6%A0%88/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>硬盘协议栈</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%87%8D%E5%90%AF%E6%A6%82%E5%BF%B5%E6%98%8E%E7%BB%86/" class="flex align-center">
+      <span>重启概念明细</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#串行总线">串行总线</a>
+      <ul>
+        <li><a href="#是否需要时钟线">是否需要时钟线</a></li>
+        <li><a href="#数据传输方向">数据传输方向</a></li>
+      </ul>
+    </li>
+    <li><a href="#并行总线">并行总线</a></li>
+    <li><a href="#无线通信">无线通信</a>
+      <ul>
+        <li><a href="#红外线">红外线</a></li>
+        <li><a href="#蓝牙">蓝牙</a></li>
+        <li><a href="#wifi">wifi</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

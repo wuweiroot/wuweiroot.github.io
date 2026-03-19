@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="pcie枚举# https://zhuanlan.zhihu.com/p/4552982975
+UEFI内核导读# https://blog.csdn.net/CStyle_0x007/article/details/8798251?spm=1001.2101.3001.6650.5&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=10
+https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+UEFI HANDLE# https://harmonyosdev.csdn.net/66d021e4c618435984a3980a.html?dp_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MTEzODE0OSwiZXhwIjoxNzM0NjAyMTQyLCJpYXQiOjE3MzM5OTczNDIsInVzZXJuYW1lIjoibWx0Z3p6In0.2EmHs_BrHkkFrcyBpaXlO6Eahmo_8eGP2i3Ou8oOKII&amp;spm=1001.2101.3001.6650.14&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=23
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="pcie枚举# https://zhuanlan.zhihu.com/p/4552982975
+UEFI内核导读# https://blog.csdn.net/CStyle_0x007/article/details/8798251?spm=1001.2101.3001.6650.5&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=10
+https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+UEFI HANDLE# https://harmonyosdev.csdn.net/66d021e4c618435984a3980a.html?dp_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MTEzODE0OSwiZXhwIjoxNzM0NjAyMTQyLCJpYXQiOjE3MzM5OTczNDIsInVzZXJuYW1lIjoibWx0Z3p6In0.2EmHs_BrHkkFrcyBpaXlO6Eahmo_8eGP2i3Ou8oOKII&amp;spm=1001.2101.3001.6650.14&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=23">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="pcie枚举# https://zhuanlan.zhihu.com/p/4552982975
+UEFI内核导读# https://blog.csdn.net/CStyle_0x007/article/details/8798251?spm=1001.2101.3001.6650.5&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=10
+https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+UEFI HANDLE# https://harmonyosdev.csdn.net/66d021e4c618435984a3980a.html?dp_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MTEzODE0OSwiZXhwIjoxNzM0NjAyMTQyLCJpYXQiOjE3MzM5OTczNDIsInVzZXJuYW1lIjoibWx0Z3p6In0.2EmHs_BrHkkFrcyBpaXlO6Eahmo_8eGP2i3Ou8oOKII&amp;spm=1001.2101.3001.6650.14&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=23">
+  <meta itemprop="wordCount" content="8">
+
+<title>资料路径 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>资料路径</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#pcie枚举">pcie枚举</a></li>
+        <li><a href="#uefi内核导读">UEFI内核导读</a></li>
+        <li><a href="#uefi-handle">UEFI HANDLE</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>资料路径</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h2 id="pcie枚举">pcie枚举<a class="anchor" href="#pcie%e6%9e%9a%e4%b8%be">#</a></h2>
+<p><a href="https://zhuanlan.zhihu.com/p/4552982975">https://zhuanlan.zhihu.com/p/4552982975</a></p>
+<h2 id="uefi内核导读">UEFI内核导读<a class="anchor" href="#uefi%e5%86%85%e6%a0%b8%e5%af%bc%e8%af%bb">#</a></h2>
+<p><a href="https://blog.csdn.net/CStyle_0x007/article/details/8798251?spm=1001.2101.3001.6650.5&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=10">https://blog.csdn.net/CStyle_0x007/article/details/8798251?spm=1001.2101.3001.6650.5&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7ERate-5-8798251-blog-9969423.235%5Ev43%5Epc_blog_bottom_relevance_base6&utm_relevant_index=10</a></p>
+<p><a href="https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q">https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q</a></p>
+<h2 id="uefi-handle">UEFI HANDLE<a class="anchor" href="#uefi-handle">#</a></h2>
+<p><a href="https://harmonyosdev.csdn.net/66d021e4c618435984a3980a.html?dp_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MTEzODE0OSwiZXhwIjoxNzM0NjAyMTQyLCJpYXQiOjE3MzM5OTczNDIsInVzZXJuYW1lIjoibWx0Z3p6In0.2EmHs_BrHkkFrcyBpaXlO6Eahmo_8eGP2i3Ou8oOKII&amp;spm=1001.2101.3001.6650.14&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&amp;utm_relevant_index=23">https://harmonyosdev.csdn.net/66d021e4c618435984a3980a.html?dp_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MTEzODE0OSwiZXhwIjoxNzM0NjAyMTQyLCJpYXQiOjE3MzM5OTczNDIsInVzZXJuYW1lIjoibWx0Z3p6In0.2EmHs_BrHkkFrcyBpaXlO6Eahmo_8eGP2i3Ou8oOKII&spm=1001.2101.3001.6650.14&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Eactivity-14-6764470-blog-8798251.235%5Ev43%5Epc_blog_bottom_relevance_base6&utm_relevant_index=23</a></p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%87%8D%E5%90%AF%E6%A6%82%E5%BF%B5%E6%98%8E%E7%BB%86/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>重启概念明细</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4%E6%98%AF%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E6%9D%A1%E5%A4%A7%E5%B0%8F%E5%90%97/" class="flex align-center">
+      <span>内存空间是物理内存条大小吗</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#pcie枚举">pcie枚举</a></li>
+        <li><a href="#uefi内核导读">UEFI内核导读</a></li>
+        <li><a href="#uefi-handle">UEFI HANDLE</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

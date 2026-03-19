@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="UEFI protocol handle 数据结构整理 edk pci驱动初始化和加载流程整理
+参考资料# UEFI# https://www.bilibili.com/video/BV1FH4y1u7Bh/?spm_id_from=333.788&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+https://xiaoxiang.space/posts/
+UEFI 内核导读# https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+X86 BIOS启动模式# 先了解 X86 架构的工作模式， X86 有很多种工作模式： 但是对BIOS 来说我们只关注实模式、 保护模式、 SMM 模式。模式切换大概就是从实模式 –&gt;保护模式（ 32bit） –&gt;保护模式（ 32bit flat 模式） –&gt;保护模式(X64 flat); 在 POST 的过程中，在不同的阶段 cpu 会工作在不同的模式，一般来说在 SEC 阶段是实模式，在 PEI阶段是 32bit flat 模式，而在 DXE 及后续阶段是保护模式的 X64 flat 模式。 UEFI启动的七个阶段# SEC PEI DXE BDS TSL RT AL
+SEC阶段# 接收和处理系统上电或者重启信号 RestVector 的初始化，以及异常向量的初始化 SecCoreStartupWithStack 初始化 IDT 初始化临时存储区域 cache作为内存 传递系统参数给下一个阶段 从实模式到保护模式，从32位模式到64位模式 PEI阶段# PEI内核调度PEIM CPU初始化 内存初始化 芯片初始化 CPU 工作模式的切换 初始化内存 DXE阶段# 初始化控制台设备（） 加载必要的设备驱动 初始化 CPU 的 GDT。 初始化 CPU 的 IDT. 根据系统设置加载和执行启动项 BDS阶段# 初始化控制台设备（输出输出设备） 加载必要的设备驱动 根据系统设置加载和执行启动项 TSL阶段# 是OS loder加载的第一阶段 启动服务进入ExitBootServices服务调用后进入 Run time阶段 RT阶段# 系统控制器转移给OS Loder UEFI DXE内核# edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h# UEFI 内核数据结构
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/uefi/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="uefi">
+  <meta property="og:description" content="UEFI protocol handle 数据结构整理 edk pci驱动初始化和加载流程整理
+参考资料# UEFI# https://www.bilibili.com/video/BV1FH4y1u7Bh/?spm_id_from=333.788&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+https://xiaoxiang.space/posts/
+UEFI 内核导读# https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+X86 BIOS启动模式# 先了解 X86 架构的工作模式， X86 有很多种工作模式： 但是对BIOS 来说我们只关注实模式、 保护模式、 SMM 模式。模式切换大概就是从实模式 –&gt;保护模式（ 32bit） –&gt;保护模式（ 32bit flat 模式） –&gt;保护模式(X64 flat); 在 POST 的过程中，在不同的阶段 cpu 会工作在不同的模式，一般来说在 SEC 阶段是实模式，在 PEI阶段是 32bit flat 模式，而在 DXE 及后续阶段是保护模式的 X64 flat 模式。 UEFI启动的七个阶段# SEC PEI DXE BDS TSL RT AL
+SEC阶段# 接收和处理系统上电或者重启信号 RestVector 的初始化，以及异常向量的初始化 SecCoreStartupWithStack 初始化 IDT 初始化临时存储区域 cache作为内存 传递系统参数给下一个阶段 从实模式到保护模式，从32位模式到64位模式 PEI阶段# PEI内核调度PEIM CPU初始化 内存初始化 芯片初始化 CPU 工作模式的切换 初始化内存 DXE阶段# 初始化控制台设备（） 加载必要的设备驱动 初始化 CPU 的 GDT。 初始化 CPU 的 IDT. 根据系统设置加载和执行启动项 BDS阶段# 初始化控制台设备（输出输出设备） 加载必要的设备驱动 根据系统设置加载和执行启动项 TSL阶段# 是OS loder加载的第一阶段 启动服务进入ExitBootServices服务调用后进入 Run time阶段 RT阶段# 系统控制器转移给OS Loder UEFI DXE内核# edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h# UEFI 内核数据结构">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="uefi">
+  <meta itemprop="description" content="UEFI protocol handle 数据结构整理 edk pci驱动初始化和加载流程整理
+参考资料# UEFI# https://www.bilibili.com/video/BV1FH4y1u7Bh/?spm_id_from=333.788&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+https://xiaoxiang.space/posts/
+UEFI 内核导读# https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q
+X86 BIOS启动模式# 先了解 X86 架构的工作模式， X86 有很多种工作模式： 但是对BIOS 来说我们只关注实模式、 保护模式、 SMM 模式。模式切换大概就是从实模式 –&gt;保护模式（ 32bit） –&gt;保护模式（ 32bit flat 模式） –&gt;保护模式(X64 flat); 在 POST 的过程中，在不同的阶段 cpu 会工作在不同的模式，一般来说在 SEC 阶段是实模式，在 PEI阶段是 32bit flat 模式，而在 DXE 及后续阶段是保护模式的 X64 flat 模式。 UEFI启动的七个阶段# SEC PEI DXE BDS TSL RT AL
+SEC阶段# 接收和处理系统上电或者重启信号 RestVector 的初始化，以及异常向量的初始化 SecCoreStartupWithStack 初始化 IDT 初始化临时存储区域 cache作为内存 传递系统参数给下一个阶段 从实模式到保护模式，从32位模式到64位模式 PEI阶段# PEI内核调度PEIM CPU初始化 内存初始化 芯片初始化 CPU 工作模式的切换 初始化内存 DXE阶段# 初始化控制台设备（） 加载必要的设备驱动 初始化 CPU 的 GDT。 初始化 CPU 的 IDT. 根据系统设置加载和执行启动项 BDS阶段# 初始化控制台设备（输出输出设备） 加载必要的设备驱动 根据系统设置加载和执行启动项 TSL阶段# 是OS loder加载的第一阶段 启动服务进入ExitBootServices服务调用后进入 Run time阶段 RT阶段# 系统控制器转移给OS Loder UEFI DXE内核# edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h# UEFI 内核数据结构">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="178">
+
+<title>uefi | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/uefi/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>uefi</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#参考资料">参考资料</a>
+      <ul>
+        <li><a href="#uefi">UEFI</a></li>
+        <li><a href="#uefi-内核导读">UEFI 内核导读</a></li>
+      </ul>
+    </li>
+    <li><a href="#x86-bios启动模式">X86 BIOS启动模式</a></li>
+    <li><a href="#uefi启动的七个阶段">UEFI启动的七个阶段</a>
+      <ul>
+        <li><a href="#sec阶段">SEC阶段</a></li>
+        <li><a href="#pei阶段">PEI阶段</a></li>
+        <li><a href="#dxe阶段">DXE阶段</a></li>
+        <li><a href="#bds阶段">BDS阶段</a></li>
+        <li><a href="#tsl阶段">TSL阶段</a></li>
+        <li><a href="#rt阶段">RT阶段</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi-dxe内核">UEFI DXE内核</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgcoredxehandhandleh">edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h</a></li>
+        <li><a href="#edk2-mastermdemodulepkgcoredxedxemaindxemainc">edk2-master\MdeModulePkg\Core\Dxe\DxeMain\DxeMain.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi代码架构">UEFI代码架构</a>
+      <ul>
+        <li><a href="#package">Package</a></li>
+        <li><a href="#module">Module</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi-模块类型">UEFI 模块类型</a></li>
+    <li><a href="#安全启动">安全启动</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>uefi</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>UEFI protocol handle 数据结构整理
+edk pci驱动初始化和加载流程整理</p>
+<h1 id="参考资料">参考资料<a class="anchor" href="#%e5%8f%82%e8%80%83%e8%b5%84%e6%96%99">#</a></h1>
+<h2 id="uefi">UEFI<a class="anchor" href="#uefi">#</a></h2>
+<p><a href="https://www.bilibili.com/video/BV1FH4y1u7Bh/?spm_id_from=333.788&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4">https://www.bilibili.com/video/BV1FH4y1u7Bh/?spm_id_from=333.788&vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4</a></p>
+<p><a href="https://xiaoxiang.space/posts/">https://xiaoxiang.space/posts/</a></p>
+<h2 id="uefi-内核导读">UEFI 内核导读<a class="anchor" href="#uefi-%e5%86%85%e6%a0%b8%e5%af%bc%e8%af%bb">#</a></h2>
+<p><a href="https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q">https://mp.weixin.qq.com/s/e_4cr4G96sSad2vqMS7k3Q</a></p>
+<h1 id="x86-bios启动模式">X86 BIOS启动模式<a class="anchor" href="#x86-bios%e5%90%af%e5%8a%a8%e6%a8%a1%e5%bc%8f">#</a></h1>
+<ul>
+<li>先了解 X86 架构的工作模式， X86 有很多种工作模式： 但是对BIOS 来说我们只关注实模式、 保护模式、 SMM 模式。模式切换大概就是从实模式 &ndash;&gt;保护模式（ 32bit） &ndash;&gt;保护模式（ 32bit flat 模式） &ndash;&gt;保护模式(X64 flat);</li>
+<li>在 POST 的过程中，在不同的阶段 cpu 会工作在不同的模式，一般来说在 SEC 阶段是实模式，在 PEI阶段是 32bit flat 模式，而在 DXE 及后续阶段是保护模式的 X64 flat 模式。</li>
+</ul>
+<h1 id="uefi启动的七个阶段">UEFI启动的七个阶段<a class="anchor" href="#uefi%e5%90%af%e5%8a%a8%e7%9a%84%e4%b8%83%e4%b8%aa%e9%98%b6%e6%ae%b5">#</a></h1>
+<blockquote class='book-hint '>
+<p>SEC PEI DXE BDS TSL RT AL</p>
+</blockquote><p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/UEFI%e5%90%af%e5%8a%a8%e4%b8%83%e4%b8%aa%e9%98%b6%e6%ae%b5.PNG">
+    <img src="/images/UEFI%e5%90%af%e5%8a%a8%e4%b8%83%e4%b8%aa%e9%98%b6%e6%ae%b5.PNG" 
+         alt="UEFI启动七个阶段" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="sec阶段">SEC阶段<a class="anchor" href="#sec%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>接收和处理系统上电或者重启信号</li>
+<li>RestVector 的初始化，以及异常向量的初始化</li>
+<li>SecCoreStartupWithStack 初始化 IDT</li>
+<li>初始化临时存储区域 cache作为内存</li>
+<li>传递系统参数给下一个阶段</li>
+<li>从实模式到保护模式，从32位模式到64位模式</li>
+</ul>
+<h2 id="pei阶段">PEI阶段<a class="anchor" href="#pei%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>PEI内核调度PEIM</li>
+<li>CPU初始化 内存初始化 芯片初始化</li>
+<li>CPU 工作模式的切换</li>
+<li>初始化内存</li>
+</ul>
+<h2 id="dxe阶段">DXE阶段<a class="anchor" href="#dxe%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>初始化控制台设备（）</li>
+<li>加载必要的设备驱动</li>
+<li>初始化 CPU 的 GDT。</li>
+<li>初始化 CPU 的 IDT.</li>
+<li>根据系统设置加载和执行启动项</li>
+</ul>
+<h2 id="bds阶段">BDS阶段<a class="anchor" href="#bds%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>初始化控制台设备（输出输出设备）</li>
+<li>加载必要的设备驱动</li>
+<li>根据系统设置加载和执行启动项</li>
+</ul>
+<h2 id="tsl阶段">TSL阶段<a class="anchor" href="#tsl%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>是OS loder加载的第一阶段</li>
+<li>启动服务进入ExitBootServices服务调用后进入 Run time阶段</li>
+</ul>
+<h2 id="rt阶段">RT阶段<a class="anchor" href="#rt%e9%98%b6%e6%ae%b5">#</a></h2>
+<ul>
+<li>系统控制器转移给OS Loder</li>
+</ul>
+<h1 id="uefi-dxe内核">UEFI DXE内核<a class="anchor" href="#uefi-dxe%e5%86%85%e6%a0%b8">#</a></h1>
+<h2 id="edk2-mastermdemodulepkgcoredxehandhandleh">edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h<a class="anchor" href="#edk2-mastermdemodulepkgcoredxehandhandleh">#</a></h2>
+<p>UEFI 内核数据结构</p>
+<h3 id="ihandle">IHANDLE<a class="anchor" href="#ihandle">#</a></h3>
+<p>协议句柄列表</p>
+<ul>
+<li>EFI_HANDLE是指向某种对象的指针，UEFI用它来表示某个对象。</li>
+<li>UEFI扫描总线后，会为每个设备建立一个Controller对象，用于控制设备，所有该设备的驱动以Protocol的形式安装到这个Controller中，这个Controller对象就是一个EFI_HANDLE对象。</li>
+<li>当我们将一个.efi文件加载到内存中时，UEFI也会为改文件建立一个Image对象，这个Image对象也是一个EFI_HANDLE对象。在UEFI内部，EFI_HANDLE被理解为IHANDLE.</li>
+</ul>
+<h3 id="protocol_entry">PROTOCOL_ENTRY<a class="anchor" href="#protocol_entry">#</a></h3>
+<p>每个不同的协议在协议数据库中都有1个条目。列出了支持此协议的每个处理程序以及已注册通知的列表。</p>
+<h3 id="protocol_interface">PROTOCOL_INTERFACE<a class="anchor" href="#protocol_interface">#</a></h3>
+<p>安装在句柄上的每个协议都使用协议接口结构进行跟踪</p>
+<h3 id="联系">联系<a class="anchor" href="#%e8%81%94%e7%b3%bb">#</a></h3>
+<ul>
+<li>一个ihandle可以挂多个 PROTOCOL_INTERFACE
+<blockquote class='book-hint '>
+<p>一个设备有多个协议, 如同一个PCIE设备可以支持DevicePath协议和PciIo协议</p>
+</blockquote></li>
+<li>一个 PROTOCOL_ENTRY 下可以挂多个 PROTOCOL_INTERFACE
+<blockquote class='book-hint '>
+<p>一个协议可以有多个设备， 如同一个Pcio协议可以安装到不同的PCIE设备身上</p>
+</blockquote></li>
+<li>PROTOCOL_INTERFACE 是不会重复的。
+<blockquote class='book-hint '>
+<p>PROTOCOL_INTERFACE数量 等于 设备*协议,一个设备一个协议唯一指定一个PROTOCOL_INTERFACE</p>
+</blockquote></li>
+</ul>
+<h2 id="edk2-mastermdemodulepkgcoredxedxemaindxemainc">edk2-master\MdeModulePkg\Core\Dxe\DxeMain\DxeMain.c<a class="anchor" href="#edk2-mastermdemodulepkgcoredxedxemaindxemainc">#</a></h2>
+<p>DXE驱动内核</p>
+<h3 id="coreconnectcontroller">CoreConnectController<a class="anchor" href="#coreconnectcontroller">#</a></h3>
+<p>链接控制器</p>
+<h3 id="mprotocoldatabase">mProtocolDatabase<a class="anchor" href="#mprotocoldatabase">#</a></h3>
+<p>Protocol数据库</p>
+<h3 id="ghandlelist">gHandleList<a class="anchor" href="#ghandlelist">#</a></h3>
+<p>handle数据库</p>
+<h3 id="locatehandlebuffer">LocateHandleBuffer<a class="anchor" href="#locatehandlebuffer">#</a></h3>
+<p>通过 PROTOCOL_ENTRY（GUID）找到 PROTOCOL_INTERFACE，从而找到 PROTOCOL_INTERFACE 所在的Ihandle</p>
+<h3 id="locateprotocol">LocateProtocol<a class="anchor" href="#locateprotocol">#</a></h3>
+<p>通过 PROTOCOL_ENTRY（GUID）找到第一个 PROTOCOL_INTERFACE 返回第一个实例。</p>
+<h1 id="uefi代码架构">UEFI代码架构<a class="anchor" href="#uefi%e4%bb%a3%e7%a0%81%e6%9e%b6%e6%9e%84">#</a></h1>
+<h2 id="package">Package<a class="anchor" href="#package">#</a></h2>
+<ul>
+<li>以XXX.Pkg命名的文件夹</li>
+<li>一组模块和平台描述文件(dsc文件) 和包声明文件(dec文件)的集合</li>
+<li>dsc文件用来指导各个模块的执行顺序。</li>
+</ul>
+<h2 id="module">Module<a class="anchor" href="#module">#</a></h2>
+<ul>
+<li>EDK2 每个工程模块由.inf文件和源文件组成</li>
+<li>inf文件类似Linux的Makefile文件，用于指导源文件编译。</li>
+</ul>
+<h1 id="uefi-模块类型">UEFI 模块类型<a class="anchor" href="#uefi-%e6%a8%a1%e5%9d%97%e7%b1%bb%e5%9e%8b">#</a></h1>
+<ul>
+<li>
+<p>UEFI 驱动，符合UEFI驱动模型的驱动。
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/82ed160adf24d64af7f5e4fe83bfc5e.png">
+    <img src="/images/82ed160adf24d64af7f5e4fe83bfc5e.png" 
+         alt="alt text" 
+         />
+  </a>
+</div>
+</p>
+</li>
+<li>
+<p>DXE驱动，DXE环境下运行的驱动。不遵循UEFI驱动模型</p>
+</li>
+<li>
+<p>DXE SMM驱动，系统管理模式的驱动， 模块被加载到系统管理内存区，系统进入运行期改驱动依然有效。</p>
+<ul>
+<li>写B2口触发</li>
+<li>GPIO触发</li>
+</ul>
+</li>
+<li>
+<p>PEIM pei阶段的模块</p>
+</li>
+<li>
+<p>SEC</p>
+</li>
+<li>
+<p>PEI_CORE</p>
+</li>
+<li>
+<p>DXE_CORE</p>
+</li>
+</ul>
+<h1 id="安全启动">安全启动<a class="anchor" href="#%e5%ae%89%e5%85%a8%e5%90%af%e5%8a%a8">#</a></h1>
+<p><a href="https://zhuanlan.zhihu.com/p/113522792">https://zhuanlan.zhihu.com/p/113522792</a></p>
+<ul>
+<li>公钥私钥
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e5%85%ac%e9%92%a5%e7%a7%81%e9%92%a5-1.png">
+    <img src="/images/%e5%85%ac%e9%92%a5%e7%a7%81%e9%92%a5-1.png" 
+         alt="alt text" 
+         />
+  </a>
+</div>
+</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/pcie%E5%8D%8F%E8%AE%AE%E6%A0%88/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>pcie协议栈</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb/" class="flex align-center">
+      <span>USB</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#参考资料">参考资料</a>
+      <ul>
+        <li><a href="#uefi">UEFI</a></li>
+        <li><a href="#uefi-内核导读">UEFI 内核导读</a></li>
+      </ul>
+    </li>
+    <li><a href="#x86-bios启动模式">X86 BIOS启动模式</a></li>
+    <li><a href="#uefi启动的七个阶段">UEFI启动的七个阶段</a>
+      <ul>
+        <li><a href="#sec阶段">SEC阶段</a></li>
+        <li><a href="#pei阶段">PEI阶段</a></li>
+        <li><a href="#dxe阶段">DXE阶段</a></li>
+        <li><a href="#bds阶段">BDS阶段</a></li>
+        <li><a href="#tsl阶段">TSL阶段</a></li>
+        <li><a href="#rt阶段">RT阶段</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi-dxe内核">UEFI DXE内核</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgcoredxehandhandleh">edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h</a></li>
+        <li><a href="#edk2-mastermdemodulepkgcoredxedxemaindxemainc">edk2-master\MdeModulePkg\Core\Dxe\DxeMain\DxeMain.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi代码架构">UEFI代码架构</a>
+      <ul>
+        <li><a href="#package">Package</a></li>
+        <li><a href="#module">Module</a></li>
+      </ul>
+    </li>
+    <li><a href="#uefi-模块类型">UEFI 模块类型</a></li>
+    <li><a href="#安全启动">安全启动</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

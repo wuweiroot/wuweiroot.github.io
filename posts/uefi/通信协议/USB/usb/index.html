@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="USB总线简介# USB是Universal Serial Bus（通用串行总线）的缩写，它是一种用于连接计算机和外部设备之间的标准接口技术4 USB采用主从通讯模式，是一种轮询总线。所有数据传输都由主机控制器发起。
+USB拓扑结构# USB标准上说USB总线拓扑是一种分层星形结构，这张拓扑图延伸出来的一些要点：
+所谓星型是针对Hub而言的，一个Hub下面可以挂Hub或者设备，最顶层就是USB主机控制器 USB主机控制器一般都伴随有一个根集线器Root Hub。 Hub级联最多5层 总线上理论最大允许连接127个设备。 Hub级联遵循向下兼容，USB2.0主机或者高速Hub可以连接USB1.1Hub。 一个USB分层星型结构有且仅有一个USB主机控制器 线缆最长不超过5米 设备识别与枚举# 插入检测# 电平触发：设备拉高 D&#43;（全速）或 D-（低速），主机检测电平变化（J 状态）。 电源检测：VCC 供电后，设备控制芯片通过 10k 电阻判断连接状态。
+枚举过程# 步骤： 主机发送GET_DESCRIPTOR请求，获取设备描述符（设备类型、厂商 ID 等）。 分配设备地址（默认地址 0 → 新地址 1-127）。 加载驱动程序，配置端点。 描述符类型：设备描述符、配置描述符、接口描述符、端点描述符。
+USB使用-主机使用从机的功能# 从机以等待主机轮询的方式发数据，以中断的方式收数据，从而实现相应的功能。
+枚举成功后，从机开始履行自己的职责。
+前面提到，从机不能擅自介绍自己，因为主机是很忙的。同样，在主机认识并接受从机后，从机依然不能擅自报告自己的行为、状态等信息。那么从机和主机要如何通信呢？
+主机会定期到USB部门来视察工作，依次询问USB部门的所有成员是否需要汇报工作。当然，有些从机希望主机询问自己的频率高一些，就必须在“简历”中附上声明：请每隔XXX的时间问一次我的情况。对于没有附上声明的从机，主机会以自己的设定定期询问，或者由应用软件“催促”主机询问（自定义的USB设备）。
+以鼠标为例，它一般会声明：请每隔10毫秒来问一下我的情况。主机会尽量遵守这个声明，及时询问鼠标。在某一次询问中，鼠标报告自己：我刚刚移动了10个像素点。那么主机就会让屏幕上的光标移动。
+因此，从机准备好发送的数据后必须进入等待（一般不会等太久），直到主机轮询到此功能时，才开始发送。假设从机可以任意触发数据的发送过程，且主机连接多个从机，那么当多个从机同时发送数据到主机的USB总线上时就会引发冲突。
+反之，当主机需要发送数据时，从机必须尽快接收，所以从机一般会用中断处理主机发送数据的请求。这是因为主机需要轮询很多从机，每次轮询都有固定的时间，超时后就通信失败了。
+USB描述符# 描述符集描述了从机的所有功能细节，它包含唯一的设备描述符，至少一个配置描述符和接口描述符，每个接口描述符至少包含一个端点描述符，此外还有其他可选的特殊描述符进行补充。
+前文提到，主机通过请求从机的描述符集来认识从机，那么描述符集包含了哪些信息呢？
+描述符集主要包含设备描述符(Device Descriptor)、配置描述符(Configuration Descriptor)、接口描述符(Interface Descriptor)、端点描述符(Endpoint Descriptor)、字符串描述符(String Descriptor)
+及其他描述符。
+描述符集的层次结构如下
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="USB">
+  <meta property="og:description" content="USB总线简介# USB是Universal Serial Bus（通用串行总线）的缩写，它是一种用于连接计算机和外部设备之间的标准接口技术4 USB采用主从通讯模式，是一种轮询总线。所有数据传输都由主机控制器发起。
+USB拓扑结构# USB标准上说USB总线拓扑是一种分层星形结构，这张拓扑图延伸出来的一些要点：
+所谓星型是针对Hub而言的，一个Hub下面可以挂Hub或者设备，最顶层就是USB主机控制器 USB主机控制器一般都伴随有一个根集线器Root Hub。 Hub级联最多5层 总线上理论最大允许连接127个设备。 Hub级联遵循向下兼容，USB2.0主机或者高速Hub可以连接USB1.1Hub。 一个USB分层星型结构有且仅有一个USB主机控制器 线缆最长不超过5米 设备识别与枚举# 插入检测# 电平触发：设备拉高 D&#43;（全速）或 D-（低速），主机检测电平变化（J 状态）。 电源检测：VCC 供电后，设备控制芯片通过 10k 电阻判断连接状态。
+枚举过程# 步骤： 主机发送GET_DESCRIPTOR请求，获取设备描述符（设备类型、厂商 ID 等）。 分配设备地址（默认地址 0 → 新地址 1-127）。 加载驱动程序，配置端点。 描述符类型：设备描述符、配置描述符、接口描述符、端点描述符。
+USB使用-主机使用从机的功能# 从机以等待主机轮询的方式发数据，以中断的方式收数据，从而实现相应的功能。
+枚举成功后，从机开始履行自己的职责。
+前面提到，从机不能擅自介绍自己，因为主机是很忙的。同样，在主机认识并接受从机后，从机依然不能擅自报告自己的行为、状态等信息。那么从机和主机要如何通信呢？
+主机会定期到USB部门来视察工作，依次询问USB部门的所有成员是否需要汇报工作。当然，有些从机希望主机询问自己的频率高一些，就必须在“简历”中附上声明：请每隔XXX的时间问一次我的情况。对于没有附上声明的从机，主机会以自己的设定定期询问，或者由应用软件“催促”主机询问（自定义的USB设备）。
+以鼠标为例，它一般会声明：请每隔10毫秒来问一下我的情况。主机会尽量遵守这个声明，及时询问鼠标。在某一次询问中，鼠标报告自己：我刚刚移动了10个像素点。那么主机就会让屏幕上的光标移动。
+因此，从机准备好发送的数据后必须进入等待（一般不会等太久），直到主机轮询到此功能时，才开始发送。假设从机可以任意触发数据的发送过程，且主机连接多个从机，那么当多个从机同时发送数据到主机的USB总线上时就会引发冲突。
+反之，当主机需要发送数据时，从机必须尽快接收，所以从机一般会用中断处理主机发送数据的请求。这是因为主机需要轮询很多从机，每次轮询都有固定的时间，超时后就通信失败了。
+USB描述符# 描述符集描述了从机的所有功能细节，它包含唯一的设备描述符，至少一个配置描述符和接口描述符，每个接口描述符至少包含一个端点描述符，此外还有其他可选的特殊描述符进行补充。
+前文提到，主机通过请求从机的描述符集来认识从机，那么描述符集包含了哪些信息呢？
+描述符集主要包含设备描述符(Device Descriptor)、配置描述符(Configuration Descriptor)、接口描述符(Interface Descriptor)、端点描述符(Endpoint Descriptor)、字符串描述符(String Descriptor)
+及其他描述符。
+描述符集的层次结构如下">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="USB">
+  <meta itemprop="description" content="USB总线简介# USB是Universal Serial Bus（通用串行总线）的缩写，它是一种用于连接计算机和外部设备之间的标准接口技术4 USB采用主从通讯模式，是一种轮询总线。所有数据传输都由主机控制器发起。
+USB拓扑结构# USB标准上说USB总线拓扑是一种分层星形结构，这张拓扑图延伸出来的一些要点：
+所谓星型是针对Hub而言的，一个Hub下面可以挂Hub或者设备，最顶层就是USB主机控制器 USB主机控制器一般都伴随有一个根集线器Root Hub。 Hub级联最多5层 总线上理论最大允许连接127个设备。 Hub级联遵循向下兼容，USB2.0主机或者高速Hub可以连接USB1.1Hub。 一个USB分层星型结构有且仅有一个USB主机控制器 线缆最长不超过5米 设备识别与枚举# 插入检测# 电平触发：设备拉高 D&#43;（全速）或 D-（低速），主机检测电平变化（J 状态）。 电源检测：VCC 供电后，设备控制芯片通过 10k 电阻判断连接状态。
+枚举过程# 步骤： 主机发送GET_DESCRIPTOR请求，获取设备描述符（设备类型、厂商 ID 等）。 分配设备地址（默认地址 0 → 新地址 1-127）。 加载驱动程序，配置端点。 描述符类型：设备描述符、配置描述符、接口描述符、端点描述符。
+USB使用-主机使用从机的功能# 从机以等待主机轮询的方式发数据，以中断的方式收数据，从而实现相应的功能。
+枚举成功后，从机开始履行自己的职责。
+前面提到，从机不能擅自介绍自己，因为主机是很忙的。同样，在主机认识并接受从机后，从机依然不能擅自报告自己的行为、状态等信息。那么从机和主机要如何通信呢？
+主机会定期到USB部门来视察工作，依次询问USB部门的所有成员是否需要汇报工作。当然，有些从机希望主机询问自己的频率高一些，就必须在“简历”中附上声明：请每隔XXX的时间问一次我的情况。对于没有附上声明的从机，主机会以自己的设定定期询问，或者由应用软件“催促”主机询问（自定义的USB设备）。
+以鼠标为例，它一般会声明：请每隔10毫秒来问一下我的情况。主机会尽量遵守这个声明，及时询问鼠标。在某一次询问中，鼠标报告自己：我刚刚移动了10个像素点。那么主机就会让屏幕上的光标移动。
+因此，从机准备好发送的数据后必须进入等待（一般不会等太久），直到主机轮询到此功能时，才开始发送。假设从机可以任意触发数据的发送过程，且主机连接多个从机，那么当多个从机同时发送数据到主机的USB总线上时就会引发冲突。
+反之，当主机需要发送数据时，从机必须尽快接收，所以从机一般会用中断处理主机发送数据的请求。这是因为主机需要轮询很多从机，每次轮询都有固定的时间，超时后就通信失败了。
+USB描述符# 描述符集描述了从机的所有功能细节，它包含唯一的设备描述符，至少一个配置描述符和接口描述符，每个接口描述符至少包含一个端点描述符，此外还有其他可选的特殊描述符进行补充。
+前文提到，主机通过请求从机的描述符集来认识从机，那么描述符集包含了哪些信息呢？
+描述符集主要包含设备描述符(Device Descriptor)、配置描述符(Configuration Descriptor)、接口描述符(Interface Descriptor)、端点描述符(Endpoint Descriptor)、字符串描述符(String Descriptor)
+及其他描述符。
+描述符集的层次结构如下">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="56">
+
+<title>USB | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>USB</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#usb总线简介">USB总线简介</a></li>
+    <li><a href="#usb拓扑结构">USB拓扑结构</a></li>
+    <li><a href="#设备识别与枚举">设备识别与枚举</a>
+      <ul>
+        <li><a href="#插入检测">插入检测</a></li>
+        <li><a href="#枚举过程">枚举过程</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb使用-主机使用从机的功能">USB使用-主机使用从机的功能</a>
+      <ul>
+        <li><a href="#usb描述符">USB描述符</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>USB</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="usb总线简介">USB总线简介<a class="anchor" href="#usb%e6%80%bb%e7%ba%bf%e7%ae%80%e4%bb%8b">#</a></h1>
+<blockquote class='book-hint '>
+<p>USB是Universal Serial Bus（通用串行总线）的缩写，它是一种用于连接计算机和外部设备之间的标准接口技术4
+USB采用主从通讯模式，是一种轮询总线。所有数据传输都由主机控制器发起。</p>
+</blockquote><h1 id="usb拓扑结构">USB拓扑结构<a class="anchor" href="#usb%e6%8b%93%e6%89%91%e7%bb%93%e6%9e%84">#</a></h1>
+<blockquote class='book-hint '>
+<p>USB标准上说USB总线拓扑是一种分层星形结构，这张拓扑图延伸出来的一些要点：</p>
+</blockquote><ul>
+<li>所谓星型是针对Hub而言的，一个Hub下面可以挂Hub或者设备，最顶层就是USB主机控制器</li>
+<li>USB主机控制器一般都伴随有一个根集线器Root Hub。</li>
+<li>Hub级联最多5层</li>
+<li>总线上理论最大允许连接127个设备。</li>
+<li>Hub级联遵循向下兼容，USB2.0主机或者高速Hub可以连接USB1.1Hub。</li>
+<li>一个USB分层星型结构有且仅有一个USB主机控制器</li>
+<li>线缆最长不超过5米</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e6%98%9f%e5%bd%a2%e6%8b%93%e6%89%91.PNG">
+    <img src="/images/%e6%98%9f%e5%bd%a2%e6%8b%93%e6%89%91.PNG" 
+         alt="星形拓扑" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="设备识别与枚举">设备识别与枚举<a class="anchor" href="#%e8%ae%be%e5%a4%87%e8%af%86%e5%88%ab%e4%b8%8e%e6%9e%9a%e4%b8%be">#</a></h1>
+<h2 id="插入检测">插入检测<a class="anchor" href="#%e6%8f%92%e5%85%a5%e6%a3%80%e6%b5%8b">#</a></h2>
+<p>电平触发：设备拉高 D+（全速）或 D-（低速），主机检测电平变化（J 状态）。
+电源检测：VCC 供电后，设备控制芯片通过 10k 电阻判断连接状态。</p>
+<h2 id="枚举过程">枚举过程<a class="anchor" href="#%e6%9e%9a%e4%b8%be%e8%bf%87%e7%a8%8b">#</a></h2>
+<p>步骤：
+主机发送GET_DESCRIPTOR请求，获取设备描述符（设备类型、厂商 ID 等）。
+分配设备地址（默认地址 0 → 新地址 1-127）。
+加载驱动程序，配置端点。
+描述符类型：设备描述符、配置描述符、接口描述符、端点描述符。</p>
+<h1 id="usb使用-主机使用从机的功能">USB使用-主机使用从机的功能<a class="anchor" href="#usb%e4%bd%bf%e7%94%a8-%e4%b8%bb%e6%9c%ba%e4%bd%bf%e7%94%a8%e4%bb%8e%e6%9c%ba%e7%9a%84%e5%8a%9f%e8%83%bd">#</a></h1>
+<blockquote class='book-hint '>
+<p>从机以等待主机轮询的方式发数据，以中断的方式收数据，从而实现相应的功能。</p>
+</blockquote><p>枚举成功后，从机开始履行自己的职责。</p>
+<p>前面提到，从机不能擅自介绍自己，因为主机是很忙的。同样，在主机认识并接受从机后，从机依然不能擅自报告自己的行为、状态等信息。那么从机和主机要如何通信呢？</p>
+<p>主机会定期到USB部门来视察工作，依次询问USB部门的所有成员是否需要汇报工作。当然，有些从机希望主机询问自己的频率高一些，就必须在“简历”中附上声明：请每隔XXX的时间问一次我的情况。对于没有附上声明的从机，主机会以自己的设定定期询问，或者由应用软件“催促”主机询问（自定义的USB设备）。</p>
+<p>以鼠标为例，它一般会声明：请每隔10毫秒来问一下我的情况。主机会尽量遵守这个声明，及时询问鼠标。在某一次询问中，鼠标报告自己：我刚刚移动了10个像素点。那么主机就会让屏幕上的光标移动。</p>
+<p>因此，从机准备好发送的数据后必须进入等待（一般不会等太久），直到主机轮询到此功能时，才开始发送。假设从机可以任意触发数据的发送过程，且主机连接多个从机，那么当多个从机同时发送数据到主机的USB总线上时就会引发冲突。</p>
+<p>反之，当主机需要发送数据时，从机必须尽快接收，所以从机一般会用中断处理主机发送数据的请求。这是因为主机需要轮询很多从机，每次轮询都有固定的时间，超时后就通信失败了。</p>
+<h2 id="usb描述符">USB描述符<a class="anchor" href="#usb%e6%8f%8f%e8%bf%b0%e7%ac%a6">#</a></h2>
+<p>描述符集描述了从机的所有功能细节，它包含唯一的设备描述符，至少一个配置描述符和接口描述符，每个接口描述符至少包含一个端点描述符，此外还有其他可选的特殊描述符进行补充。</p>
+<p>前文提到，主机通过请求从机的描述符集来认识从机，那么描述符集包含了哪些信息呢？</p>
+<p>描述符集主要包含设备描述符(Device Descriptor)、配置描述符(Configuration Descriptor)、接口描述符(Interface Descriptor)、端点描述符(Endpoint Descriptor)、字符串描述符(String Descriptor)</p>
+<p>及其他描述符。</p>
+<p>描述符集的层次结构如下</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/usb%e6%8f%8f%e8%bf%b0%e7%ac%a6.png">
+    <img src="/images/usb%e6%8f%8f%e8%bf%b0%e7%ac%a6.png" 
+         alt="usb描述符" 
+         />
+  </a>
+</div>
+</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/uefi/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>uefi</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb%E5%8D%8F%E8%AE%AE%E6%A0%88/" class="flex align-center">
+      <span>USB协议栈</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#usb总线简介">USB总线简介</a></li>
+    <li><a href="#usb拓扑结构">USB拓扑结构</a></li>
+    <li><a href="#设备识别与枚举">设备识别与枚举</a>
+      <ul>
+        <li><a href="#插入检测">插入检测</a></li>
+        <li><a href="#枚举过程">枚举过程</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb使用-主机使用从机的功能">USB使用-主机使用从机的功能</a>
+      <ul>
+        <li><a href="#usb描述符">USB描述符</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

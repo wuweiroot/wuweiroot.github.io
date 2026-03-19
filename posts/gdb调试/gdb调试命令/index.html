@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="调试步骤# 从机# 配置gdb调试模式，启动
+主机# 在gdb窗口中输入命令：target remote localhost:1234 以连接bochs进行调试
+然后输入命令：symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym 以加载kernel.bin的符号表
+编译# 包含gdb调试
+CFLAGS= -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes -Wmissing-prototypes -m32 -fno-stack-protector -g 生成可以被GDB理解的符号表，用于GDB调试
+gdb_symbol: objcopy –only-keep-debug $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/kernel.sym 部署# file 命令用于指定要调试的可执行文件，会加载文件的全部内容，包括代码、数据和调试符号（如果有的话）。 symbol-file 命令用于加载单独的符号文件，只包含调试符号信息，适合在可执行文件和调试符号分离的情况下使用。 通常在调试时，你可以先用 file 命令加载可执行文件，再用 symbol-file 命令加载单独的符号文件，这样既能保证可执行文件的简洁，又能在调试时获得完整的符号信息。 加载精简符号表# 分离调试符号：正如之前提到的使用 objcopy –only-keep-debug 命令将调试符号从 kernel.bin 中提取出来，保存到单独的文件（如 kernel.sym）中。这样，kernel.bin 文件体积会减小，便于部署，而调试时可以通过调试工具（如 GDB）加载 kernel.sym 文件来获取调试信息。
+symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym
+加载整个文件# symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.bin
+断点# b main.c:60
+查看断点# info breakpoints
+常用控制# run（r）：启动被调试程序，若程序需要参数，可在 run 后直接添加。例如 run arg1 arg2。 continue（c）：继续执行被调试程序，直到遇到下一个断点或程序结束。 next（n）：单步执行程序，不进入函数内部，直接执行下一条语句。 step（s）：单步执行程序，会进入函数内部。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/gdb%E8%B0%83%E8%AF%95/gdb%E8%B0%83%E8%AF%95%E5%91%BD%E4%BB%A4/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="gdb调试命令">
+  <meta property="og:description" content="调试步骤# 从机# 配置gdb调试模式，启动
+主机# 在gdb窗口中输入命令：target remote localhost:1234 以连接bochs进行调试
+然后输入命令：symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym 以加载kernel.bin的符号表
+编译# 包含gdb调试
+CFLAGS= -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes -Wmissing-prototypes -m32 -fno-stack-protector -g 生成可以被GDB理解的符号表，用于GDB调试
+gdb_symbol: objcopy –only-keep-debug $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/kernel.sym 部署# file 命令用于指定要调试的可执行文件，会加载文件的全部内容，包括代码、数据和调试符号（如果有的话）。 symbol-file 命令用于加载单独的符号文件，只包含调试符号信息，适合在可执行文件和调试符号分离的情况下使用。 通常在调试时，你可以先用 file 命令加载可执行文件，再用 symbol-file 命令加载单独的符号文件，这样既能保证可执行文件的简洁，又能在调试时获得完整的符号信息。 加载精简符号表# 分离调试符号：正如之前提到的使用 objcopy –only-keep-debug 命令将调试符号从 kernel.bin 中提取出来，保存到单独的文件（如 kernel.sym）中。这样，kernel.bin 文件体积会减小，便于部署，而调试时可以通过调试工具（如 GDB）加载 kernel.sym 文件来获取调试信息。
+symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym
+加载整个文件# symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.bin
+断点# b main.c:60
+查看断点# info breakpoints
+常用控制# run（r）：启动被调试程序，若程序需要参数，可在 run 后直接添加。例如 run arg1 arg2。 continue（c）：继续执行被调试程序，直到遇到下一个断点或程序结束。 next（n）：单步执行程序，不进入函数内部，直接执行下一条语句。 step（s）：单步执行程序，会进入函数内部。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="gdb调试命令">
+  <meta itemprop="description" content="调试步骤# 从机# 配置gdb调试模式，启动
+主机# 在gdb窗口中输入命令：target remote localhost:1234 以连接bochs进行调试
+然后输入命令：symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym 以加载kernel.bin的符号表
+编译# 包含gdb调试
+CFLAGS= -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes -Wmissing-prototypes -m32 -fno-stack-protector -g 生成可以被GDB理解的符号表，用于GDB调试
+gdb_symbol: objcopy –only-keep-debug $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/kernel.sym 部署# file 命令用于指定要调试的可执行文件，会加载文件的全部内容，包括代码、数据和调试符号（如果有的话）。 symbol-file 命令用于加载单独的符号文件，只包含调试符号信息，适合在可执行文件和调试符号分离的情况下使用。 通常在调试时，你可以先用 file 命令加载可执行文件，再用 symbol-file 命令加载单独的符号文件，这样既能保证可执行文件的简洁，又能在调试时获得完整的符号信息。 加载精简符号表# 分离调试符号：正如之前提到的使用 objcopy –only-keep-debug 命令将调试符号从 kernel.bin 中提取出来，保存到单独的文件（如 kernel.sym）中。这样，kernel.bin 文件体积会减小，便于部署，而调试时可以通过调试工具（如 GDB）加载 kernel.sym 文件来获取调试信息。
+symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym
+加载整个文件# symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.bin
+断点# b main.c:60
+查看断点# info breakpoints
+常用控制# run（r）：启动被调试程序，若程序需要参数，可在 run 后直接添加。例如 run arg1 arg2。 continue（c）：继续执行被调试程序，直到遇到下一个断点或程序结束。 next（n）：单步执行程序，不进入函数内部，直接执行下一条语句。 step（s）：单步执行程序，会进入函数内部。">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="82">
+
+<title>gdb调试命令 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/gdb%E8%B0%83%E8%AF%95/gdb%E8%B0%83%E8%AF%95%E5%91%BD%E4%BB%A4/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>gdb调试命令</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#调试步骤">调试步骤</a>
+      <ul>
+        <li><a href="#从机">从机</a></li>
+        <li><a href="#主机">主机</a></li>
+      </ul>
+    </li>
+    <li><a href="#编译">编译</a></li>
+    <li><a href="#部署">部署</a>
+      <ul>
+        <li><a href="#加载精简符号表">加载精简符号表</a></li>
+        <li><a href="#加载整个文件">加载整个文件</a></li>
+      </ul>
+    </li>
+    <li><a href="#断点">断点</a>
+      <ul>
+        <li><a href="#查看断点">查看断点</a></li>
+      </ul>
+    </li>
+    <li><a href="#常用控制">常用控制</a></li>
+    <li><a href="#进入反汇编">进入反汇编</a></li>
+    <li><a href="#退出反汇编">退出反汇编</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>gdb调试命令</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="调试步骤">调试步骤<a class="anchor" href="#%e8%b0%83%e8%af%95%e6%ad%a5%e9%aa%a4">#</a></h1>
+<h2 id="从机">从机<a class="anchor" href="#%e4%bb%8e%e6%9c%ba">#</a></h2>
+<p>配置gdb调试模式，启动</p>
+<h2 id="主机">主机<a class="anchor" href="#%e4%b8%bb%e6%9c%ba">#</a></h2>
+<p>在gdb窗口中输入命令：target remote localhost:1234 以连接bochs进行调试</p>
+<p>然后输入命令：symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym 以加载kernel.bin的符号表</p>
+<h1 id="编译">编译<a class="anchor" href="#%e7%bc%96%e8%af%91">#</a></h1>
+<ul>
+<li>
+<p>包含gdb调试</p>
+<ul>
+<li>CFLAGS= -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes -Wmissing-prototypes -m32 -fno-stack-protector -g</li>
+</ul>
+</li>
+<li>
+<p>生成可以被GDB理解的符号表，用于GDB调试</p>
+<ul>
+<li>gdb_symbol:
+<ul>
+<li>objcopy &ndash;only-keep-debug $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/kernel.sym</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h1 id="部署">部署<a class="anchor" href="#%e9%83%a8%e7%bd%b2">#</a></h1>
+<ul>
+<li>file 命令用于指定要调试的可执行文件，会加载文件的全部内容，包括代码、数据和调试符号（如果有的话）。</li>
+<li>symbol-file 命令用于加载单独的符号文件，只包含调试符号信息，适合在可执行文件和调试符号分离的情况下使用。</li>
+<li>通常在调试时，你可以先用 file 命令加载可执行文件，再用 symbol-file 命令加载单独的符号文件，这样既能保证可执行文件的简洁，又能在调试时获得完整的符号信息。</li>
+</ul>
+<h2 id="加载精简符号表">加载精简符号表<a class="anchor" href="#%e5%8a%a0%e8%bd%bd%e7%b2%be%e7%ae%80%e7%ac%a6%e5%8f%b7%e8%a1%a8">#</a></h2>
+<blockquote class='book-hint '>
+<p>分离调试符号：正如之前提到的使用 objcopy &ndash;only-keep-debug 命令将调试符号从 kernel.bin 中提取出来，保存到单独的文件（如 kernel.sym）中。这样，kernel.bin 文件体积会减小，便于部署，而调试时可以通过调试工具（如 GDB）加载 kernel.sym 文件来获取调试信息。</p>
+</blockquote><p>symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.sym</p>
+<h2 id="加载整个文件">加载整个文件<a class="anchor" href="#%e5%8a%a0%e8%bd%bd%e6%95%b4%e4%b8%aa%e6%96%87%e4%bb%b6">#</a></h2>
+<p>symbol-file /home/lmx/Desktop/the_truth_of_operationg_system/chapter_15/k/build/kernel.bin</p>
+<h1 id="断点">断点<a class="anchor" href="#%e6%96%ad%e7%82%b9">#</a></h1>
+<p>b main.c:60</p>
+<h2 id="查看断点">查看断点<a class="anchor" href="#%e6%9f%a5%e7%9c%8b%e6%96%ad%e7%82%b9">#</a></h2>
+<p>info breakpoints</p>
+<h1 id="常用控制">常用控制<a class="anchor" href="#%e5%b8%b8%e7%94%a8%e6%8e%a7%e5%88%b6">#</a></h1>
+<p>run（r）：启动被调试程序，若程序需要参数，可在 run 后直接添加。例如 run arg1 arg2。
+continue（c）：继续执行被调试程序，直到遇到下一个断点或程序结束。
+next（n）：单步执行程序，不进入函数内部，直接执行下一条语句。
+step（s）：单步执行程序，会进入函数内部。</p>
+<h1 id="进入反汇编">进入反汇编<a class="anchor" href="#%e8%bf%9b%e5%85%a5%e5%8f%8d%e6%b1%87%e7%bc%96">#</a></h1>
+<p>layout asm</p>
+<p>nexti（ni）：单步执行下一条汇编指令，但不进入函数调用。
+stepi（si）：单步执行下一条汇编指令，如果是函数调用则进入函数内部。</p>
+<h1 id="退出反汇编">退出反汇编<a class="anchor" href="#%e9%80%80%e5%87%ba%e5%8f%8d%e6%b1%87%e7%bc%96">#</a></h1>
+<p>layout prev 可用于切换到上一个布局</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/gdb%E8%B0%83%E8%AF%95/%E6%8C%82%E6%9C%BA%E8%B0%83%E8%AF%95/" class="flex align-center">
+      <span>挂机调试</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#调试步骤">调试步骤</a>
+      <ul>
+        <li><a href="#从机">从机</a></li>
+        <li><a href="#主机">主机</a></li>
+      </ul>
+    </li>
+    <li><a href="#编译">编译</a></li>
+    <li><a href="#部署">部署</a>
+      <ul>
+        <li><a href="#加载精简符号表">加载精简符号表</a></li>
+        <li><a href="#加载整个文件">加载整个文件</a></li>
+      </ul>
+    </li>
+    <li><a href="#断点">断点</a>
+      <ul>
+        <li><a href="#查看断点">查看断点</a></li>
+      </ul>
+    </li>
+    <li><a href="#常用控制">常用控制</a></li>
+    <li><a href="#进入反汇编">进入反汇编</a></li>
+    <li><a href="#退出反汇编">退出反汇编</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,9 @@
+nasm tast.asm -f bin -o tast.bin
+
+cmd /k pushd "$(CURRENT_DIRECTORY)" & D:\ACERFILES\OLDE\PROGFILES\NASM\nasm.exe -f bin  "$(FULL_CURRENT_PATH)" -o "$(NAME_PART).bin" & PAUSE & EXIT。
+
+。其中，“D:\ACERFILES\OLDE\PROGFILES\NASM\”应该改成你自己机器上实际的NASM安装路径。 //C:\NASM
+
+cmd /k pushd "$(CURRENT_DIRECTORY)" & C:\NASM\nasm.exe -f bin  "$(FULL_CURRENT_PATH)" -o "$(NAME_PART).bin" & PAUSE & EXIT。
+
+cmd /k pushd "$(CURRENT_DIRECTORY)" & C:\NASM\nasm.exe -f bin  "$(FULL_CURRENT_PATH)" -o "$(NAME_PART).bin" -l "$(NAME_PART).lst" & PAUSE & EXIT。

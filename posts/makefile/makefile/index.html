@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="makefile# 基本语法# 目标文件:依赖文件 [Tab]命令
+makefile 基本语法包括三部分，这三部分加在一起称为一组规则，下面解释下各部分的意义。 （1）目标文件是指此规则中想要生成的文件，可以是.o 结尾的目标文件，也可以是可执行文件，也可 以是个伪目标，后面会介绍伪目标。 （2）依赖文件是指要生成此规则中的目标文件，需要哪些文件。通常依赖文件不是 1 个，所以此处是 个依赖文件的列表 （ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。
+示例# ’’’ 1:2 echo “makefile test ok” ’’’ 此例子中 makefile 就两行，足够简单了。第 1 行中，目标文件是文件 1，依赖文件是文件 2。第 2 行 是要执行的命令。 此 makefile 的意义是如果文件 2 的 mtime 比文件 1 的 mtime 要新，就调用 echo 命令打印字符串 makefile test ok”
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/makefile/makefile/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="makefile">
+  <meta property="og:description" content="makefile# 基本语法# 目标文件:依赖文件 [Tab]命令
+makefile 基本语法包括三部分，这三部分加在一起称为一组规则，下面解释下各部分的意义。 （1）目标文件是指此规则中想要生成的文件，可以是.o 结尾的目标文件，也可以是可执行文件，也可 以是个伪目标，后面会介绍伪目标。 （2）依赖文件是指要生成此规则中的目标文件，需要哪些文件。通常依赖文件不是 1 个，所以此处是 个依赖文件的列表 （ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。
+示例# ’’’ 1:2 echo “makefile test ok” ’’’ 此例子中 makefile 就两行，足够简单了。第 1 行中，目标文件是文件 1，依赖文件是文件 2。第 2 行 是要执行的命令。 此 makefile 的意义是如果文件 2 的 mtime 比文件 1 的 mtime 要新，就调用 echo 命令打印字符串 makefile test ok”">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="makefile">
+  <meta itemprop="description" content="makefile# 基本语法# 目标文件:依赖文件 [Tab]命令
+makefile 基本语法包括三部分，这三部分加在一起称为一组规则，下面解释下各部分的意义。 （1）目标文件是指此规则中想要生成的文件，可以是.o 结尾的目标文件，也可以是可执行文件，也可 以是个伪目标，后面会介绍伪目标。 （2）依赖文件是指要生成此规则中的目标文件，需要哪些文件。通常依赖文件不是 1 个，所以此处是 个依赖文件的列表 （ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令 要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行 时便知道这是要执行的命令。
+示例# ’’’ 1:2 echo “makefile test ok” ’’’ 此例子中 makefile 就两行，足够简单了。第 1 行中，目标文件是文件 1，依赖文件是文件 2。第 2 行 是要执行的命令。 此 makefile 的意义是如果文件 2 的 mtime 比文件 1 的 mtime 要新，就调用 echo 命令打印字符串 makefile test ok”">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="353">
+
+<title>makefile | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/makefile/makefile/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>makefile</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#makefile">makefile</a>
+      <ul>
+        <li><a href="#基本语法">基本语法</a></li>
+        <li><a href="#示例">示例</a></li>
+        <li><a href="#make递归式推导目标">make：递归式推导目标</a></li>
+        <li><a href="#命令相关及参数相关的系统变量一命令相关的系统变量部分">命令相关及参数相关的系统变量一命令相关的系统变量（部分）</a></li>
+        <li><a href="#隐含规则">隐含规则</a></li>
+        <li><a href="#自动化变量">自动化变量</a></li>
+        <li><a href="#模式规则">模式规则</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>makefile</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="makefile">makefile<a class="anchor" href="#makefile">#</a></h1>
+<h2 id="基本语法">基本语法<a class="anchor" href="#%e5%9f%ba%e6%9c%ac%e8%af%ad%e6%b3%95">#</a></h2>
+<p>目标文件:依赖文件
+[Tab]命令</p>
+<p>makefile 基本语法包括三部分，这三部分加在一起称为一组规则，下面解释下各部分的意义。
+（1）目标文件是指此规则中想要生成的文件，可以是.o 结尾的目标文件，也可以是可执行文件，也可
+以是个伪目标，后面会介绍伪目标。
+（2）依赖文件是指要生成此规则中的目标文件，需要哪些文件。通常依赖文件不是 1 个，所以此处是
+个依赖文件的列表
+（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令
+要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行
+时便知道这是要执行的命令。（ 3）命令是指此规则中要执行的动作，这些动作是指各种 shell 命令。命令可以有多个，但一个命令
+要单独占用一行，在行首必须以 Tab 开头。这是 make 规定的用法，这样 make 在解析到以 Tab 开头的行
+时便知道这是要执行的命令。</p>
+<h2 id="示例">示例<a class="anchor" href="#%e7%a4%ba%e4%be%8b">#</a></h2>
+<p>&rsquo;&rsquo;&rsquo;
+1:2
+echo &ldquo;makefile test ok&rdquo;
+&rsquo;&rsquo;&rsquo;
+此例子中 makefile 就两行，足够简单了。第 1 行中，目标文件是文件 1，依赖文件是文件 2。第 2 行
+是要执行的命令。
+此 makefile 的意义是如果文件 2 的 mtime 比文件 1 的 mtime 要新，就调用 echo 命令打印字符串 makefile test ok”</p>
+<h2 id="make递归式推导目标">make：递归式推导目标<a class="anchor" href="#make%e9%80%92%e5%bd%92%e5%bc%8f%e6%8e%a8%e5%af%bc%e7%9b%ae%e6%a0%87">#</a></h2>
+<blockquote class='book-hint '>
+<p>在 makefile 中的目标，是以递归的方式逐层向上查找目标的，就好像是从迷宫的出口往回找来时的路一样，
+果寻因，逐个向上推导。这一点尤其体现在多个目标相互依赖的情况下</p>
+</blockquote><h2 id="命令相关及参数相关的系统变量一命令相关的系统变量部分">命令相关及参数相关的系统变量一命令相关的系统变量（部分）<a class="anchor" href="#%e5%91%bd%e4%bb%a4%e7%9b%b8%e5%85%b3%e5%8f%8a%e5%8f%82%e6%95%b0%e7%9b%b8%e5%85%b3%e7%9a%84%e7%b3%bb%e7%bb%9f%e5%8f%98%e9%87%8f%e4%b8%80%e5%91%bd%e4%bb%a4%e7%9b%b8%e5%85%b3%e7%9a%84%e7%b3%bb%e7%bb%9f%e5%8f%98%e9%87%8f%e9%83%a8%e5%88%86">#</a></h2>
+<p>变 量 名 描 述
+AR 打包程序，默认是“ar”
+AS 汇编语言编译器，默认是“as”
+CC C 语言编译器，默认是“cc”
+CXX C++语言编译器，默认是“g++”
+CPP C 预处理器，默认是“$(CC) –E”，如 gcc -E
+FC Fortran 的编译器和预处理器， Ratfor 的编译器，默认是“f77”
+GET 从 SCCS 文件中提取文件程序，默认是“get”
+PC Pascal 语言编译器，默认是“pc”
+MAKEINFO 将 texinfo 文件转换为 info 文件，默认是“makeinfo”
+RM 删除命令，默认是“rm -f”
+TEX 从 TeX 源文件中创建 TexDVI 文件的程序，默认是“tex”
+WEAVE 将 Web 转换为 TeX 的程序，默认是“weave”
+YACC 处理 C 程序的 Yacc 词法分析器，默认是“yacc”
+YACCR 处理 Ratfor 程序的 Yacc 词法分析器，默认是“yacc -r”
+参数相关的系统变量（部分），几乎都无默认值
+ARFLAGS 打包程序$(AR) 的参数，默认值为 rv
+ASFLAGS 汇编语言编译器参数
+CFLAGS C 语言编译器参数
+CXXFLAGS C++编译器参数
+CPPFLAGS C 预处理器参数
+FFLAGS Fortran 语言编译器参数
+LDFLAGS 链接器参数
+PFLAGS Pascal 语言编译器参数
+YFLAGS Yacc 词法分析器参数</p>
+<blockquote class='book-hint '>
+<p>见 my_makefile文件</p>
+</blockquote><ul>
+<li>自定义的 makefile 名称—my_makefile，里面定义了个伪目标 all，就是为了执行 echo
+语句打印变量名及其值</li>
+<li>在 make 执行时要用-f 参数指定 my_makefile，这样 make
+程序才不会自动去找那三个标准的文件名。</li>
+<li>命令相关的系统变量是有值的，但参数相关的系统变量只有 ARFLAGS 有值</li>
+</ul>
+<h2 id="隐含规则">隐含规则<a class="anchor" href="#%e9%9a%90%e5%90%ab%e8%a7%84%e5%88%99">#</a></h2>
+<p>-&gt; 对于一些使用频率非常高的规则， make 把它们当成是默认的，不需要显式地写
+出来，当用户未在 makefile 中显式定义规则时，将默认使用隐含规则进行推导</p>
+<ul>
+<li>
+<p>隐含规则只限于那些编译过程中基本固定的依赖关系，比如 C 语言代码文件扩展名为.c，编译生成的
+目标文件扩展名是.o，这一般是一对一的。而一个可执行程序可能是由多个.o 文件共同链接生成的，所以，
+从可执行程序到.o 文件的关系有可能是一对多，这种不确定性无法使之成为隐含的规则。所以，对于 C
+语言的依赖关系是：文件名.o 依赖于文件名.c，仅限于源文件生成.o 目标文件，不存在.o 文件生成可执行
+程序的隐含规则。</p>
+</li>
+<li>
+<p>C 程序
+“x.o”的生成依赖于“x.c”，生成 x.o 的命令为：
+“$(CC) -c $(CPPFLAGS) $(CFLAGS)”。</p>
+</li>
+</ul>
+<h2 id="自动化变量">自动化变量<a class="anchor" href="#%e8%87%aa%e5%8a%a8%e5%8c%96%e5%8f%98%e9%87%8f">#</a></h2>
+<blockquote class='book-hint '>
+<p>make 还支持一种自动化变量，此变量代表一组文件名，无论是目标文件名，还是依赖文件名，此变量
+值的范围属于这组文件名集合，也就是说，自动化变量相当于对文件名集合循环遍历一遍。</p>
+</blockquote><ul>
+<li>
+<p>$@，表示规则中的目标文件名集合，如果存在多个目标文件， $@则表示其中每一个文件名。助记， ’@’
+很像是 at， aim at，表示瞄准目标。</p>
+</li>
+<li>
+<p>$&lt;，表示规则中依赖文件中的第 1 个文件。助记， ‘&lt;’很像是集合的最左边，也就是第 1 个。</p>
+</li>
+<li>
+<p>$^，表示规则中所有依赖文件的集合，如果集合中有重复的文件， $^会自动去重。助记， ’^’很像从上往下
+罩的动作，能罩住很大的范围，所以称为集合。</p>
+</li>
+<li>
+<p>$?，表示规则中，所有比目标文件 mtime 更新的依赖文件集合。助记， ’?’表示疑问， make 最大的疑
+问就是依赖文件的 mtime 是否比目标文件的 mtime 要新。</p>
+</li>
+</ul>
+<h3 id="示例-1">示例<a class="anchor" href="#%e7%a4%ba%e4%be%8b-1">#</a></h3>
+<p>test2.o:test2.c
+2 gcc -c -o test2.o test2.c
+3 test1.o:test1.c
+4 gcc -c -o test1.o test1.c
+5 objfiles = test1.o test2.o
+6 test.bin:$(objfiles)
+7 gcc -o $@ $^
+8 all:test.bin
+9 @echo &ldquo;compile done&rdquo;</p>
+<p>我们在第 7 行用$@代替了 test.bin，用$^代替了所有依赖文件。所以第 7 行就相当于 gcc –o test.bin test1.o
+test2.o。</p>
+<h2 id="模式规则">模式规则<a class="anchor" href="#%e6%a8%a1%e5%bc%8f%e8%a7%84%e5%88%99">#</a></h2>
+<blockquote class='book-hint '>
+<p>模式，即 pattern，其实就是指字符串模（mú，二声）子，正则表达式中用此概念表示字符或字符串
+匹配，把符合此模子的字符串找出来， make 中也支持这种字符串匹配用法。</p>
+</blockquote><ul>
+<li>
+<p>%用来匹配任意多个非空字符。比如%.o 代表所有以.o 为结尾的文件， g%s.o 是以字符 g 开头的所有以.o
+为结尾的文件， make 会拿这个字符串模式去文件系统上查找文件，默认为当前路径下</p>
+</li>
+<li>
+<p>%通常用在规则中的目标文件中，以用来匹配所有目标文件， %也可以用在规则中的依赖文件中，
+因为目标文件才是要生成的文件，所以当%用在依赖文件中时，其所匹配的文件名要以目标文件为准。拿
+%.o:%.c 为例，假如用%.o 匹配到了目标文件 a.o 和 b.o，那么依赖文件中的%.c 将分别匹配到 a.c 和 b.c。</p>
+</li>
+</ul>
+<h3 id="示例-2">示例<a class="anchor" href="#%e7%a4%ba%e4%be%8b-2">#</a></h3>
+<p>1 %.o:%.c
+2 gcc -c -o $@ $^
+3 objfiles = test1.o test2.o
+4 test.bin:$(objfiles)
+5 gcc -o $@ $^
+6 all:test.bin
+7 @echo &ldquo;compile done&rdquo;</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/makefile/test/gcc/" class="flex align-center">
+      <span>Gcc</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#makefile">makefile</a>
+      <ul>
+        <li><a href="#基本语法">基本语法</a></li>
+        <li><a href="#示例">示例</a></li>
+        <li><a href="#make递归式推导目标">make：递归式推导目标</a></li>
+        <li><a href="#命令相关及参数相关的系统变量一命令相关的系统变量部分">命令相关及参数相关的系统变量一命令相关的系统变量（部分）</a></li>
+        <li><a href="#隐含规则">隐含规则</a></li>
+        <li><a href="#自动化变量">自动化变量</a></li>
+        <li><a href="#模式规则">模式规则</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

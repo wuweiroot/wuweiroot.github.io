@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+页表 - 页表（Page Table Entry PTE）# 保护模式的寻址空间是 4GB，注意啦，这个寻址空间是指线性地址空间，它在逻 辑上是连续的。分页机制的思想是：通过映射，可以使连续的线性地址与任意物理内存地址相关联，逻辑 上连续的线性地址其对应的物理地址可以不连续
+32 位地址表示 4GB 空间，可以将 32 位地址分成高低两部分，低地址部分是内存块大小，高地址部分是 内存块数量，它们是这样一种关系：内存块数*内存块大小=4GB。故我们可以在图 5-10 所示的 32 位地址上滑 动滑块找到合适的内存块尺寸。滑块右边是内存块尺寸，滑块左边是内存块数量。
+右边第 11～0 位用来表示页的大小，也就是这 12 位可以作为页内寻址。左边第31～12 位用来表示页的数量，同样这 20 位也用来索引一个页（索引范围 0～0xfffff）
+线性地址 0x1234 被送入了页部件。页部件分析 0x1234 的高 20 位，用十六进制表示高 20 位是 0x00001。将此项作为页表项索引，再将该索引乘以 4 后加上 cr3 寄存 器中页表的物理地址，这样便得到索引所指代的页表项的物理地址，从该物理地址处（页表项中）读取所 映射的物理页地址： 0x9000。线性地址的低 12 位是 0x234，它作为物理页的页内偏移地址与物理页地址 0x9000 相加，和为 0x9234，这就是线性地址 0x1234 最终转换成的物理地址。
+二级页表 - 页目录条目（Page Directory Entry, PDE）# 经以上分析，二级页表地址转换原理是将 32 位虚拟地址拆分成高 10 位、中间 10 位、低 12 位三部分，它们 的作用是：高 10 位作为页表的索引，用于在页目录表中定位一个页目录项 PDE，页目录项中有页表物理地址， 也就是定位到了某个页表。中间 10 位作为物理页的索引，用于在页表内定位到某个页表项 PTE，页表项中有分 配的物理页地址，也就是定位到了某个物理页。低 12 位作为页内偏移量用于在已经定位到的物理页内寻址。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/os%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="OS内存管理">
+  <meta property="og:description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+页表 - 页表（Page Table Entry PTE）# 保护模式的寻址空间是 4GB，注意啦，这个寻址空间是指线性地址空间，它在逻 辑上是连续的。分页机制的思想是：通过映射，可以使连续的线性地址与任意物理内存地址相关联，逻辑 上连续的线性地址其对应的物理地址可以不连续
+32 位地址表示 4GB 空间，可以将 32 位地址分成高低两部分，低地址部分是内存块大小，高地址部分是 内存块数量，它们是这样一种关系：内存块数*内存块大小=4GB。故我们可以在图 5-10 所示的 32 位地址上滑 动滑块找到合适的内存块尺寸。滑块右边是内存块尺寸，滑块左边是内存块数量。
+右边第 11～0 位用来表示页的大小，也就是这 12 位可以作为页内寻址。左边第31～12 位用来表示页的数量，同样这 20 位也用来索引一个页（索引范围 0～0xfffff）
+线性地址 0x1234 被送入了页部件。页部件分析 0x1234 的高 20 位，用十六进制表示高 20 位是 0x00001。将此项作为页表项索引，再将该索引乘以 4 后加上 cr3 寄存 器中页表的物理地址，这样便得到索引所指代的页表项的物理地址，从该物理地址处（页表项中）读取所 映射的物理页地址： 0x9000。线性地址的低 12 位是 0x234，它作为物理页的页内偏移地址与物理页地址 0x9000 相加，和为 0x9234，这就是线性地址 0x1234 最终转换成的物理地址。
+二级页表 - 页目录条目（Page Directory Entry, PDE）# 经以上分析，二级页表地址转换原理是将 32 位虚拟地址拆分成高 10 位、中间 10 位、低 12 位三部分，它们 的作用是：高 10 位作为页表的索引，用于在页目录表中定位一个页目录项 PDE，页目录项中有页表物理地址， 也就是定位到了某个页表。中间 10 位作为物理页的索引，用于在页表内定位到某个页表项 PTE，页表项中有分 配的物理页地址，也就是定位到了某个物理页。低 12 位作为页内偏移量用于在已经定位到的物理页内寻址。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="OS内存管理">
+  <meta itemprop="description" content="内存布局# 低端1M可用内存# 结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。
+页表 - 页表（Page Table Entry PTE）# 保护模式的寻址空间是 4GB，注意啦，这个寻址空间是指线性地址空间，它在逻 辑上是连续的。分页机制的思想是：通过映射，可以使连续的线性地址与任意物理内存地址相关联，逻辑 上连续的线性地址其对应的物理地址可以不连续
+32 位地址表示 4GB 空间，可以将 32 位地址分成高低两部分，低地址部分是内存块大小，高地址部分是 内存块数量，它们是这样一种关系：内存块数*内存块大小=4GB。故我们可以在图 5-10 所示的 32 位地址上滑 动滑块找到合适的内存块尺寸。滑块右边是内存块尺寸，滑块左边是内存块数量。
+右边第 11～0 位用来表示页的大小，也就是这 12 位可以作为页内寻址。左边第31～12 位用来表示页的数量，同样这 20 位也用来索引一个页（索引范围 0～0xfffff）
+线性地址 0x1234 被送入了页部件。页部件分析 0x1234 的高 20 位，用十六进制表示高 20 位是 0x00001。将此项作为页表项索引，再将该索引乘以 4 后加上 cr3 寄存 器中页表的物理地址，这样便得到索引所指代的页表项的物理地址，从该物理地址处（页表项中）读取所 映射的物理页地址： 0x9000。线性地址的低 12 位是 0x234，它作为物理页的页内偏移地址与物理页地址 0x9000 相加，和为 0x9234，这就是线性地址 0x1234 最终转换成的物理地址。
+二级页表 - 页目录条目（Page Directory Entry, PDE）# 经以上分析，二级页表地址转换原理是将 32 位虚拟地址拆分成高 10 位、中间 10 位、低 12 位三部分，它们 的作用是：高 10 位作为页表的索引，用于在页目录表中定位一个页目录项 PDE，页目录项中有页表物理地址， 也就是定位到了某个页表。中间 10 位作为物理页的索引，用于在页表内定位到某个页表项 PTE，页表项中有分 配的物理页地址，也就是定位到了某个物理页。低 12 位作为页内偏移量用于在已经定位到的物理页内寻址。">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="238">
+
+<title>OS内存管理 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/os%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>OS内存管理</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#内存布局">内存布局</a>
+      <ul>
+        <li><a href="#低端1m可用内存">低端1M可用内存</a></li>
+      </ul>
+    </li>
+    <li><a href="#页表---页表page-table-entry-pte">页表 - 页表（Page Table Entry PTE）</a>
+      <ul>
+        <li><a href="#二级页表---页目录条目page-directory-entry-pde">二级页表 - 页目录条目（Page Directory Entry, PDE）</a></li>
+      </ul>
+    </li>
+    <li><a href="#位图">位图</a></li>
+    <li><a href="#内存管理">内存管理</a>
+      <ul>
+        <li><a href="#低端1m可用内存-1">低端1M可用内存</a></li>
+        <li><a href="#define-pg_size-4096">#define PG_SIZE 4096</a></li>
+        <li><a href="#主线程pcb地址-0xc009e000">主线程PCB地址 0xc009e000</a></li>
+        <li><a href="#define-mem_bitmap_base-位图地址-0xc009a000">#define MEM_BITMAP_BASE 位图地址 0xc009a000</a></li>
+      </ul>
+    </li>
+    <li><a href="#0xc0000000">0xc0000000</a></li>
+    <li><a href="#0xc0001500">0xc0001500</a>
+      <ul>
+        <li><a href="#define-k_heap_start-0xc0100000">#define K_HEAP_START 0xc0100000</a></li>
+        <li><a href="#为什么要将位图地址选在低端-1mb-以下呢">为什么要将位图地址选在低端 1MB 以下呢</a></li>
+      </ul>
+    </li>
+    <li><a href="#define-user_vaddr_start-0x8048000-linux下大部分可执行程序的入口地址虚拟都是这个附近我们也仿照这个设定">define USER_VADDR_START 0x8048000	 //linux下大部分可执行程序的入口地址（虚拟）都是这个附近，我们也仿照这个设定</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>OS内存管理</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="内存布局">内存布局<a class="anchor" href="#%e5%86%85%e5%ad%98%e5%b8%83%e5%b1%80">#</a></h1>
+<h2 id="低端1m可用内存">低端1M可用内存<a class="anchor" href="#%e4%bd%8e%e7%ab%af1m%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98">#</a></h2>
+<p>结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG">
+    <img src="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG" 
+         alt="低端1M可用内存" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="页表---页表page-table-entry-pte">页表 - 页表（Page Table Entry PTE）<a class="anchor" href="#%e9%a1%b5%e8%a1%a8---%e9%a1%b5%e8%a1%a8page-table-entry-pte">#</a></h1>
+<blockquote class='book-hint '>
+<p>保护模式的寻址空间是 4GB，注意啦，这个寻址空间是指线性地址空间，它在逻
+辑上是连续的。分页机制的思想是：通过映射，可以使连续的线性地址与任意物理内存地址相关联，逻辑
+上连续的线性地址其对应的物理地址可以不连续</p>
+</blockquote><p>32 位地址表示 4GB 空间，可以将 32 位地址分成高低两部分，低地址部分是内存块大小，高地址部分是
+内存块数量，它们是这样一种关系：内存块数*内存块大小=4GB。故我们可以在图 5-10 所示的 32 位地址上滑
+动滑块找到合适的内存块尺寸。滑块右边是内存块尺寸，滑块左边是内存块数量。</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e5%90%88%e9%80%82%e7%9a%84%e9%a1%b5%e5%b0%ba%e5%af%b8.PNG">
+    <img src="/images/%e5%90%88%e9%80%82%e7%9a%84%e9%a1%b5%e5%b0%ba%e5%af%b8.PNG" 
+         alt="合适的页尺寸" 
+         />
+  </a>
+</div>
+</p>
+<p>右边第 11～0 位用来表示页的大小，也就是这 12 位可以作为页内寻址。左边第31～12 位用来表示页的数量，同样这 20 位也用来索引一个页（索引范围 0～0xfffff）</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%b8%80%e7%ba%a7%e9%a1%b5%e8%a1%a8%e8%bd%ac%e6%8d%a2%e7%89%a9%e7%90%86%e5%9c%b0%e5%9d%80.PNG">
+    <img src="/images/%e4%b8%80%e7%ba%a7%e9%a1%b5%e8%a1%a8%e8%bd%ac%e6%8d%a2%e7%89%a9%e7%90%86%e5%9c%b0%e5%9d%80.PNG" 
+         alt="一级页表转换物理地址" 
+         />
+  </a>
+</div>
+</p>
+<p>线性地址 0x1234 被送入了页部件。页部件分析 0x1234 的高
+20 位，用十六进制表示高 20 位是 0x00001。将此项作为页表项索引，再将该索引乘以 4 后加上 cr3 寄存
+器中页表的物理地址，这样便得到索引所指代的页表项的物理地址，从该物理地址处（页表项中）读取所
+映射的物理页地址： 0x9000。线性地址的低 12 位是 0x234，它作为物理页的页内偏移地址与物理页地址
+0x9000 相加，和为 0x9234，这就是线性地址 0x1234 最终转换成的物理地址。</p>
+<h2 id="二级页表---页目录条目page-directory-entry-pde">二级页表 - 页目录条目（Page Directory Entry, PDE）<a class="anchor" href="#%e4%ba%8c%e7%ba%a7%e9%a1%b5%e8%a1%a8---%e9%a1%b5%e7%9b%ae%e5%bd%95%e6%9d%a1%e7%9b%aepage-directory-entry-pde">#</a></h2>
+<blockquote class='book-hint '>
+<p>经以上分析，二级页表地址转换原理是将 32 位虚拟地址拆分成高 10 位、中间 10 位、低 12 位三部分，它们
+的作用是：高 10 位作为页表的索引，用于在页目录表中定位一个页目录项 PDE，页目录项中有页表物理地址，
+也就是定位到了某个页表。中间 10 位作为物理页的索引，用于在页表内定位到某个页表项 PTE，页表项中有分
+配的物理页地址，也就是定位到了某个物理页。低 12 位作为页内偏移量用于在已经定位到的物理页内寻址。</p>
+</blockquote><ul>
+<li>页目录表中共有1024个页目录项，共4096=0x1000=4kb大小</li>
+<li>页表中共有1024个页表项，共4096=0x1000=4kb大小</li>
+<li>最后12位可表示最大地址是0x1000=4kb(0~0xfff)</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%ba%8c%e7%ba%a7%e9%a1%b5%e8%a1%a8%e8%bd%ac%e6%8d%a2%e7%89%a9%e7%90%86%e5%9c%b0%e5%9d%80.PNG">
+    <img src="/images/%e4%ba%8c%e7%ba%a7%e9%a1%b5%e8%a1%a8%e8%bd%ac%e6%8d%a2%e7%89%a9%e7%90%86%e5%9c%b0%e5%9d%80.PNG" 
+         alt="二级页表转换物理地址" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="位图">位图<a class="anchor" href="#%e4%bd%8d%e5%9b%be">#</a></h1>
+<blockquote class='book-hint '>
+<p>内存或硬盘，对于此类大容量资源的管理一般都会采用位图的方式
+位图就是用字节中的 1 位来映射其他单位大小的资源，按位与资源之间是一对一的对应关系。</p>
+</blockquote><ul>
+<li>位图中每一个位表示一页</li>
+</ul>
+<h1 id="内存管理">内存管理<a class="anchor" href="#%e5%86%85%e5%ad%98%e7%ae%a1%e7%90%86">#</a></h1>
+<h2 id="低端1m可用内存-1">低端1M可用内存<a class="anchor" href="#%e4%bd%8e%e7%ab%af1m%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98-1">#</a></h2>
+<p>结论是在 0x7e00～0x9fbff 这片区域的高地址中找一亩地给kernel.bin，这里我擅自做主啦，帮大家选的是 0x70000。</p>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG">
+    <img src="/images/%e4%bd%8e%e7%ab%af1M%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98.PNG" 
+         alt="低端1M可用内存" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="define-pg_size-4096">#define PG_SIZE 4096<a class="anchor" href="#define-pg_size-4096">#</a></h2>
+<ul>
+<li>宏 PG_SIZE，用以表示页的尺寸，其值为 4096，即 4KB</li>
+</ul>
+<h2 id="主线程pcb地址-0xc009e000">主线程PCB地址 0xc009e000<a class="anchor" href="#%e4%b8%bb%e7%ba%bf%e7%a8%8bpcb%e5%9c%b0%e5%9d%80-0xc009e000">#</a></h2>
+<ul>
+<li>
+<p>进程 PCB 或线程 TCB（PCB 程序控制块， TCB 线程控制块）结构有一定关系。为方便讨论我们暂且称之为 PCB 吧。将来我们所实现的 PCB 要占用 1 页内存，即 PCB 要占用 4KB 大小的内存空间，不过要注意的是 PCB 所占用的内存必须是自然页，自然页就是页的起始地址必须是 0xXXXXX000，终止地址必须是 0xXXXXXfff。也就是不能跨页占用</p>
+</li>
+<li>
+<p>PCB 必须是完整、单独地占用一个物理页框。顺便说一句， PCB是进程或线程的“身份证”，任何一个进程都包含一个 PCB 结构。</p>
+</li>
+<li>
+<p>假如 PCB 的地址是 0xXXXXX000。 PCB 结构是这样的，在 PCB 的最低处0xXXXXX000 以上存储的是进程或线程的信息，这包括 pid、进程状态等（以后在介绍线程时再跟大伙儿细说）。 PCB 的最高处 0xXXXXXfff 以下用于进程或线程在 0 特权级下所使用的栈。</p>
+</li>
+<li>
+<p>明明有一段 0x7E00～0x9FBFF的可用内存空间 我们偏偏把 0x9f000 作为内核栈顶（0xc009f000 对应的物理地址是 0x9f000，因为在页表中，我们把低端 1MB 的内存做的是对等映射）</p>
+</li>
+<li>
+<p>正如咱们在 loader.S 中所做的，在进入内核之前，通过 mov esp, 0xc009f000 将内核所使用的栈顶指向 0xc009f000，因此您肯定知道了将来主线程的 PCB 地址是 0xc009e000，对，确实如此。</p>
+</li>
+</ul>
+<h2 id="define-mem_bitmap_base-位图地址-0xc009a000">#define MEM_BITMAP_BASE 位图地址 0xc009a000<a class="anchor" href="#define-mem_bitmap_base-%e4%bd%8d%e5%9b%be%e5%9c%b0%e5%9d%80-0xc009a000">#</a></h2>
+<ul>
+<li>当前虚拟机配置了 32MB 的物理内存，这 32MB 物理内存需要 1024 字节的位图，也就是仅占四分之一页，故一页大小的位图可管理 128MB 的内存</li>
+<li>不过为了扩展，我们可以更任性一点，在此打算支持 4 页内存的位图，即最大可管理 512MB 的物理内存</li>
+<li>0xc009e000 已经是主线程的 PCB，一页大小为 0x1000，故再减去 4 页，即 0xc009e000 − 0x4000 =0xc009a000。故我们的位图地址为 、0xc009a000。</li>
+</ul>
+<h1 id="0xc0000000">0xc0000000<a class="anchor" href="#0xc0000000">#</a></h1>
+<blockquote class='book-hint '>
+<p>3G,内核映射虚拟地址起始</p>
+</blockquote><h1 id="0xc0001500">0xc0001500<a class="anchor" href="#0xc0001500">#</a></h1>
+<blockquote class='book-hint '>
+<p>内核入口地址</p>
+</blockquote><h2 id="define-k_heap_start-0xc0100000">#define K_HEAP_START 0xc0100000<a class="anchor" href="#define-k_heap_start-0xc0100000">#</a></h2>
+<ul>
+<li>
+<p>动态申请的内存都是在堆空间中完成的，我们为此也定义了内核所用的堆空间，堆也是内存，内存就得有地址，从哪个地址开始分配呢？这就是K_HEAP_START 的作用，堆的起始虚拟地址</p>
+</li>
+<li>
+<p>在 loader 中我们已经通过设置页表把虚拟地址 0xc0000000～0xc00fffff 映射到了物理地址 0x00000000～0x000fffff（低端 1MB 的内存），
+第 15 行定义了宏 K_HEAP_START，用来表示内核所使用的堆空间起始虚拟地址，其值为 0xc0100000</p>
+</li>
+<li>
+<p>内核可用空余虚拟空间地址起点</p>
+</li>
+</ul>
+<h2 id="为什么要将位图地址选在低端-1mb-以下呢">为什么要将位图地址选在低端 1MB 以下呢<a class="anchor" href="#%e4%b8%ba%e4%bb%80%e4%b9%88%e8%a6%81%e5%b0%86%e4%bd%8d%e5%9b%be%e5%9c%b0%e5%9d%80%e9%80%89%e5%9c%a8%e4%bd%8e%e7%ab%af-1mb-%e4%bb%a5%e4%b8%8b%e5%91%a2">#</a></h2>
+<blockquote class='book-hint '>
+<p>般的内存管理系统所管理的是那些空闲的内存，即已被使用的内存是不在内存池中的， “已使用的内存”当然包括内存管理相关数据结构所占的内存，位图就是用于管理内存的数据结构，这也是位图地址选为0xc009a000（0x9a000）的原因，此地址位于低端 1MB 之内，这里面的内存几乎都被占用了，因此我们就不用考虑它占用的内存了。下面咱们看看具体的实现吧。</p>
+</blockquote><h1 id="define-user_vaddr_start-0x8048000-linux下大部分可执行程序的入口地址虚拟都是这个附近我们也仿照这个设定">define USER_VADDR_START 0x8048000	 //linux下大部分可执行程序的入口地址（虚拟）都是这个附近，我们也仿照这个设定<a class="anchor" href="#define-user_vaddr_start-0x8048000-linux%e4%b8%8b%e5%a4%a7%e9%83%a8%e5%88%86%e5%8f%af%e6%89%a7%e8%a1%8c%e7%a8%8b%e5%ba%8f%e7%9a%84%e5%85%a5%e5%8f%a3%e5%9c%b0%e5%9d%80%e8%99%9a%e6%8b%9f%e9%83%bd%e6%98%af%e8%bf%99%e4%b8%aa%e9%99%84%e8%bf%91%e6%88%91%e4%bb%ac%e4%b9%9f%e4%bb%bf%e7%85%a7%e8%bf%99%e4%b8%aa%e8%ae%be%e5%ae%9a">#</a></h1>
+<ul>
+<li>用户可用空余虚拟地址空间起点</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/os%E5%86%85%E6%A0%B8%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="flex align-center">
+      <span>OS内核数据结构</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#内存布局">内存布局</a>
+      <ul>
+        <li><a href="#低端1m可用内存">低端1M可用内存</a></li>
+      </ul>
+    </li>
+    <li><a href="#页表---页表page-table-entry-pte">页表 - 页表（Page Table Entry PTE）</a>
+      <ul>
+        <li><a href="#二级页表---页目录条目page-directory-entry-pde">二级页表 - 页目录条目（Page Directory Entry, PDE）</a></li>
+      </ul>
+    </li>
+    <li><a href="#位图">位图</a></li>
+    <li><a href="#内存管理">内存管理</a>
+      <ul>
+        <li><a href="#低端1m可用内存-1">低端1M可用内存</a></li>
+        <li><a href="#define-pg_size-4096">#define PG_SIZE 4096</a></li>
+        <li><a href="#主线程pcb地址-0xc009e000">主线程PCB地址 0xc009e000</a></li>
+        <li><a href="#define-mem_bitmap_base-位图地址-0xc009a000">#define MEM_BITMAP_BASE 位图地址 0xc009a000</a></li>
+      </ul>
+    </li>
+    <li><a href="#0xc0000000">0xc0000000</a></li>
+    <li><a href="#0xc0001500">0xc0001500</a>
+      <ul>
+        <li><a href="#define-k_heap_start-0xc0100000">#define K_HEAP_START 0xc0100000</a></li>
+        <li><a href="#为什么要将位图地址选在低端-1mb-以下呢">为什么要将位图地址选在低端 1MB 以下呢</a></li>
+      </ul>
+    </li>
+    <li><a href="#define-user_vaddr_start-0x8048000-linux下大部分可执行程序的入口地址虚拟都是这个附近我们也仿照这个设定">define USER_VADDR_START 0x8048000	 //linux下大部分可执行程序的入口地址（虚拟）都是这个附近，我们也仿照这个设定</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

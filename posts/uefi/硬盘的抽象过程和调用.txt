@@ -1,0 +1,334 @@
+我直接拿一个“PCI Bus Driver 发现 AHCI 控制器”的流程，配合接近 edk2 风格的伪代码，带你从硬件 → ControllerHandle → 功能驱动 走一遍。
+
+注意：代码是“形似 edk2 的伪代码”，方便理解结构，不是一行一行照抄源代码。
+
+---
+
+## 场景设定
+
+* 硬件上有一颗 AHCI 控制器，PCI 位置：Bus 0, Device 31, Function 2（举例）。
+* DXE 阶段，`PciBusDxe` 已经被加载，有自己的 `ImageHandle_PciBus` 和 `EFI_DRIVER_BINDING_PROTOCOL`。
+* 目标：走一遍：
+
+  1. `PciBusDxe` 扫 PCI 配置空间 → 发现这颗 AHCI 控制器；
+  2. 为它创建一个 **ControllerHandle_AhciPci**，安装 `EFI_PCI_IO_PROTOCOL` 等；
+  3. 之后 AhciDxe 再来绑定这个 ControllerHandle。
+
+---
+
+## 第一步：Bus Driver 扫描 PCI，发现设备
+
+`PciBusDxe` 的 DriverBinding.Start() 被调用后，会对一个 Host Bridge / Root Bridge 做 bus 扫描。简化后的伪代码：
+
+```c
+EFI_STATUS
+PciBusStart (
+  IN EFI_DRIVER_BINDING_PROTOCOL *This,
+  IN EFI_HANDLE                  Controller,      // 上级 Root Bridge 的 Handle
+  IN EFI_DEVICE_PATH_PROTOCOL    *RemainingDevicePath OPTIONAL
+  )
+{
+  // ... 为简化忽略 Root Bridge 相关处理 ...
+
+  for (UINT8 Bus = MinBus; Bus <= MaxBus; Bus++) {
+    for (UINT8 Dev = 0; Dev < PCI_MAX_DEVICE; Dev++) {
+      for (UINT8 Func = 0; Func < PCI_MAX_FUNC; Func++) {
+
+        UINT16 VendorId = PciSegmentRead16 (PCI_SEGMENT_LIB_ADDRESS (
+                              Segment, Bus, Dev, Func, PCI_VENDOR_ID_OFFSET
+                            ));
+        if (VendorId == 0xFFFF) {
+          // 这儿说明这个 BDF 上没有设备
+          if (Func == 0) {
+            // 单 function 设备不存在，那整个 Dev 都可以跳过
+            break;
+          }
+          continue;
+        }
+
+        // 到这里，说明 (Bus, Dev, Func) 上有一个 PCI 设备
+        // 接下来为它创建一个 ControllerHandle
+        CreatePciDevice (Bus, Dev, Func, Controller /* Root Bridge Handle */);
+      }
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+```
+
+关键点：
+
+* 扫描是 Bus Driver（`PciBusDxe`）干的，不是 BootServices 自动扫；
+* 通过 `PciSegmentRead16` 读 Vendor ID，`0xFFFF` 表示无设备；
+* 一旦发现某个 BDF 有设备，就调用内部函数去“创 handle + 挂协议”。
+
+---
+
+## 第二步：为这颗设备创建 ControllerHandle + 安装 PciIo
+
+接着看 `CreatePciDevice()` 的伪代码，重点步骤：
+
+```c
+EFI_STATUS
+CreatePciDevice (
+  IN UINT8                Bus,
+  IN UINT8                Dev,
+  IN UINT8                Func,
+  IN EFI_HANDLE           RootBridgeHandle
+  )
+{
+  EFI_HANDLE            ControllerHandle;
+  EFI_PCI_IO_PROTOCOL  *PciIo;
+  EFI_DEVICE_PATH_PROTOCOL *DevicePath;
+  PCI_TYPE00           PciConfig;
+
+  // 1. 读取完整的 PCI 配置头，判断类型/类码等
+  PciSegmentReadBuffer (
+    PCI_SEGMENT_LIB_ADDRESS (Segment, Bus, Dev, Func, 0),
+    sizeof (PCI_TYPE00),
+    &PciConfig
+    );
+
+  // 2. 为这个设备分配一个 ControllerHandle（初始化为 NULL，后面 InstallProtocol 时自动创建）
+  ControllerHandle = NULL;
+
+  // 3. 构造 EFI_PCI_IO_PROTOCOL 实例，填好操作函数
+  PciIo = AllocateZeroPool (sizeof (EFI_PCI_IO_PROTOCOL));
+  PciIo->PollMem   = PciIoPollMem;
+  PciIo->PollIo    = PciIoPollIo;
+  PciIo->Mem.Read  = PciIoMemRead;
+  PciIo->Mem.Write = PciIoMemWrite;
+  PciIo->Io.Read   = PciIoIoRead;
+  PciIo->Io.Write  = PciIoIoWrite;
+  PciIo->Pci.Read  = PciIoPciRead;
+  PciIo->Pci.Write = PciIoPciWrite;
+  // ... 还有 Map/Unmap/AllocateBuffer/FreeBuffer 等函数指针 ...
+
+  // 4. 构造这个设备的 Device Path（PCI 节点 + 上级 Root Bridge 路径）
+  DevicePath = CreatePciDevicePath (RootBridgeHandle, Bus, Dev, Func);
+
+  // 5. 在这个新 Handle 上安装协议（核心一步）
+  EFI_STATUS Status = gBS->InstallMultipleProtocolInterfaces (
+                        &ControllerHandle,
+                        &gEfiPciIoProtocolGuid,      PciIo,
+                        &gEfiDevicePathProtocolGuid, DevicePath,
+                        NULL
+                        );
+  if (EFI_ERROR (Status)) {
+    // 失败则清理资源
+    FreePool (PciIo);
+    FreePool (DevicePath);
+    return Status;
+  }
+
+  // 6. 建立层级关系：这颗 PCI 设备是 RootBridge 的子 Controller
+  // （具体实现里还会维护自己的内部数据结构，比如 PCI_DEV，挂在 RootBridge 的私有列表中）
+
+  return EFI_SUCCESS;
+}
+```
+
+到这里，我们得到：
+
+* 一个新的 **ControllerHandle_AhciPci**（假设这颗设备是 AHCI 控制器）；
+* 这个 Handle 上至少挂了：
+
+  * `EFI_PCI_IO_PROTOCOL` 指向 `PciBusDxe` 提供的一组函数；
+  * `EFI_DEVICE_PATH_PROTOCOL` 表示 BDF 位置；
+* PciBusDxe 内部会记住这颗设备的 class/subclass/progif：
+
+  * 比如 class = 0x01（Mass Storage），subclass = 0x06（SATA），ProgIF = 0x01（AHCI）。
+
+这一阶段发生的本质是：
+
+> “把一个物理 PCI 设备 → 抽象成 UEFI 世界里的一个 ControllerHandle + PciIo + DevicePath”。
+
+---
+
+## 第三步：功能驱动（例如 AhciDxe）来绑定这个 ControllerHandle
+
+现在 PCI Bus 这边的工作已经完成一部分：这颗 AHCI 控制器存在于 Handle 数据库里了。
+下一步是 **Ahci 控制器驱动（AhciDxe）** 来绑定这个 Controller。
+
+### 3.1 AhciDxe 的 DriverBinding.Supported()
+
+伪代码如下：
+
+```c
+EFI_STATUS
+AhciSupported (
+  IN EFI_DRIVER_BINDING_PROTOCOL *This,
+  IN EFI_HANDLE                  ControllerHandle,
+  IN EFI_DEVICE_PATH_PROTOCOL    *RemainingDevicePath OPTIONAL
+  )
+{
+  EFI_PCI_IO_PROTOCOL *PciIo;
+  PCI_TYPE00          PciConfig;
+  EFI_STATUS          Status;
+
+  // 1. 打开这个 Controller 上的 PCI_IO 协议，试探一下
+  Status = gBS->OpenProtocol (
+                  ControllerHandle,
+                  &gEfiPciIoProtocolGuid,
+                  (VOID **)&PciIo,
+                  This->DriverBindingHandle,  // ImageHandle of AhciDxe
+                  ControllerHandle,
+                  EFI_OPEN_PROTOCOL_BY_DRIVER
+                  );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  // 2. 读取 PCI 配置空间，判断是否是 AHCI 控制器
+  Status = PciIo->Pci.Read (
+                        PciIo,
+                        EfiPciIoWidthUint32,
+                        0,
+                        sizeof (PciConfig) / sizeof (UINT32),
+                        &PciConfig
+                        );
+  if (EFI_ERROR (Status)) {
+    gBS->CloseProtocol (
+           ControllerHandle,
+           &gEfiPciIoProtocolGuid,
+           This->DriverBindingHandle,
+           ControllerHandle
+           );
+    return Status;
+  }
+
+  // 判断 Class/SubClass/ProgIF 是否匹配 AHCI
+  if (PciConfig.Hdr.ClassCode[2] == PCI_CLASS_MASS_STORAGE &&
+      PciConfig.Hdr.ClassCode[1] == PCI_CLASS_MASS_STORAGE_SATA &&
+      PciConfig.Hdr.ClassCode[0] == PCI_IF_AHCI) {
+    // 是我认识的控制器：返回成功
+    Status = EFI_SUCCESS;
+  } else {
+    Status = EFI_UNSUPPORTED;
+  }
+
+  // 3. Supported() 只是“探测”，所以这里要把 PciIo 关掉
+  gBS->CloseProtocol (
+         ControllerHandle,
+         &gEfiPciIoProtocolGuid,
+         This->DriverBindingHandle,
+         ControllerHandle
+         );
+
+  return Status;
+}
+```
+
+这里发生了几件重要的事：
+
+1. `AhciDxe` 是通过 `OpenProtocol(ControllerHandle, PciIo, BY_DRIVER)` 来“探设备”的；
+2. 它完全基于 `PciBusDxe` 之前安装在 ControllerHandle 上的 `EFI_PCI_IO_PROTOCOL` 来读配置信息；
+3. 它不直接去扫硬件，而是遵守 UEFI 的“Handle + Protocol”模型。
+
+### 3.2 AhciDxe 的 DriverBinding.Start()
+
+确认 Supported() 返回成功后，DXE Core/ConnectController 会调用 Start()：
+
+```c
+EFI_STATUS
+AhciStart (
+  IN EFI_DRIVER_BINDING_PROTOCOL *This,
+  IN EFI_HANDLE                  ControllerHandle,
+  IN EFI_DEVICE_PATH_PROTOCOL    *RemainingDevicePath OPTIONAL
+  )
+{
+  EFI_PCI_IO_PROTOCOL *PciIo;
+  EFI_STATUS           Status;
+
+  // 1. 正式打开 PCI_IO（这次是真绑定）
+  Status = gBS->OpenProtocol (
+                  ControllerHandle,
+                  &gEfiPciIoProtocolGuid,
+                  (VOID **)&PciIo,
+                  This->DriverBindingHandle,   // AhciDxe 的 ImageHandle
+                  ControllerHandle,
+                  EFI_OPEN_PROTOCOL_BY_DRIVER
+                  );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  // 2. 对 AHCI 控制器做初始化
+  Status = AhciControllerInit (PciIo);
+  if (EFI_ERROR (Status)) {
+    // 初始化失败，关闭 PciIo 后返回
+    gBS->CloseProtocol (
+           ControllerHandle,
+           &gEfiPciIoProtocolGuid,
+           This->DriverBindingHandle,
+           ControllerHandle
+           );
+    return Status;
+  }
+
+  // 3. 枚举每个 Port / Device，为每块硬盘创建 Child Handle，并安装 BlockIo 等
+  Status = EnumerateAhciDevicesAndCreateChildHandles (
+             This,
+             ControllerHandle,
+             PciIo
+             );
+  if (EFI_ERROR (Status)) {
+    // 出错则清理
+    AhciControllerUninit (PciIo);
+    gBS->CloseProtocol (
+           ControllerHandle,
+           &gEfiPciIoProtocolGuid,
+           This->DriverBindingHandle,
+           ControllerHandle
+           );
+  }
+
+  return Status;
+}
+```
+
+`EnumerateAhciDevicesAndCreateChildHandles()` 里又会做一件你已经很熟悉的事情：
+
+* 对每个有磁盘的 Port：
+
+  * 创建一个 **ChildHandle_DiskX**；
+  * 在这个子 handle 上安装：
+
+    * `EFI_BLOCK_IO_PROTOCOL`
+    * `EFI_DISK_IO_PROTOCOL`
+    * `EFI_DEVICE_PATH_PROTOCOL`（类型变成“控制器下的硬盘节点”）
+
+这样，“PCI AHCI 控制器 → AHCI 驱动 → Block IO 子 handle” 这条链子就打通了。
+
+---
+
+## 串起来看这一“步”
+
+从“发现一颗 PCI 设备”到“驱动绑定”，完整一步是：
+
+1. `PciBusDxe` 扫 PCI 配置空间：
+
+   * 读 VendorId ≠ 0xFFFF → 有设备；
+   * 调 `CreatePciDevice()`；
+   * **结果：** 创建 **ControllerHandle_AhciPci**，上面装好 `EFI_PCI_IO_PROTOCOL` + `EFI_DEVICE_PATH_PROTOCOL`。
+2. AhciDxe 的 `DriverBinding.Supported()` 被调用：
+
+   * `OpenProtocol(ControllerHandle_AhciPci, PciIo, BY_DRIVER)`；
+   * 用 PciIo 读 ClassCode 判断是否是 AHCI；
+   * 是的话返回 `EFI_SUCCESS`，不是则 `EFI_UNSUPPORTED`。
+3. AhciDxe 的 `DriverBinding.Start()` 被调用：
+
+   * 再次 `OpenProtocol(PciIo, BY_DRIVER)`，这次是正式绑定；
+   * 初始化 AHCI 控制器；
+   * 枚举每个 Port，给每块硬盘创建 ChildHandle，并安装 BlockIo 等。
+4. 上层（BDS、FileSystem、Shell 或应用）想访问磁盘，只需：
+
+   * `LocateHandleBuffer(&gEfiBlockIoProtocolGuid, ...)` 找到所有 Block IO 设备；
+   * 对其中某个 handle 调 `OpenProtocol(BlockIo)`，通过接口读写扇区；
+   * 完全不需要去看 PCI BDF、ClassCode、寄存器细节。
+
+---
+
+如果你愿意，下一步可以换一个例子：
+比如 GOP 驱动直接在 PCI 显卡的 ControllerHandle 上安装 `EFI_GRAPHICS_OUTPUT_PROTOCOL`，对比一下“有子 Handle”（AHCI→磁盘）和“直接在原 ControllerHandle 安 Protocol”（GOP）的区别。

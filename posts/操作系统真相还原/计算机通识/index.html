@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="访问外设的两种方式# 内存映射： 通过地址总线将外设自己的内存映射到某个内存区域（并不是映射到主板上插的内存条中）。 端口操作：外设都有自己的控制器，控制器上有寄存器，这些寄存器就是所谓的端口，通过 in/out 指令读写端口来访问硬件的内存。 中断向量表# CPU 收到中断后，得知道发生了什么事情才能执行相应的处理办法。这是通过中断向量表或中断描述 符表（中断向量表是实模式下的中断处理程序数组，在保护模式下已经被中断描述符表代替，
+而 Linux 内核是在进入保护模式后才建立中断例程的，不过在保护模式下，中断向量表已经不存在了， 取而代之的是中断描述符表（Interrupt Descriptor Table， IDT）。
+如果在实模式下执行 int 指令，会自动去访问中断向量表。如果在保护模式下执行 int 指令，则会自动访问中断描述符表。
+中断描述符表# LEGACY# Legacy BIOS：IDT 由操作系统在引导阶段创建，BIOS 仅提供实模式的中断向量表
+BIOS 的角色# BIOS 在实模式下提供中断向量表（IVT），其固定地址为 0x00000，包含实模式下的中断服务程序入口（如 INT 10h 显示服务、INT 13h 磁盘服务等）8910。
+BIOS 不涉及保护模式的中断管理，仅负责实模式下的硬件初始化和基本中断支持。
+操作系统的职责# 当系统从实模式切换到保护模式时，引导加载程序（如 GRUB） 或操作系统内核需手动设置 IDT，包括定义中断门、陷阱门等描述符，并通过 LIDT 指令加载 IDT 的基地址和界限到 IDTR 寄存器56。
+例如，Linux 内核的 setup.s 代码在引导阶段初始化 IDT 和 GDT，为保护模式的中断机制做准备
+UEFI# UEFI：UEFI 固件可能初始化临时 IDT，但最终由操作系统内核接管并重建完整的 IDT
+UEFI 固件的角色# UEFI 原生运行在保护模式（或长模式），其固件已初始化基础的内存管理和中断框架，可能包含临时 IDT 用于 UEFI 自身的服务（如安全启动、硬件检测等）1。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E8%AE%A1%E7%AE%97%E6%9C%BA%E9%80%9A%E8%AF%86/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="访问外设的两种方式# 内存映射： 通过地址总线将外设自己的内存映射到某个内存区域（并不是映射到主板上插的内存条中）。 端口操作：外设都有自己的控制器，控制器上有寄存器，这些寄存器就是所谓的端口，通过 in/out 指令读写端口来访问硬件的内存。 中断向量表# CPU 收到中断后，得知道发生了什么事情才能执行相应的处理办法。这是通过中断向量表或中断描述 符表（中断向量表是实模式下的中断处理程序数组，在保护模式下已经被中断描述符表代替，
+而 Linux 内核是在进入保护模式后才建立中断例程的，不过在保护模式下，中断向量表已经不存在了， 取而代之的是中断描述符表（Interrupt Descriptor Table， IDT）。
+如果在实模式下执行 int 指令，会自动去访问中断向量表。如果在保护模式下执行 int 指令，则会自动访问中断描述符表。
+中断描述符表# LEGACY# Legacy BIOS：IDT 由操作系统在引导阶段创建，BIOS 仅提供实模式的中断向量表
+BIOS 的角色# BIOS 在实模式下提供中断向量表（IVT），其固定地址为 0x00000，包含实模式下的中断服务程序入口（如 INT 10h 显示服务、INT 13h 磁盘服务等）8910。
+BIOS 不涉及保护模式的中断管理，仅负责实模式下的硬件初始化和基本中断支持。
+操作系统的职责# 当系统从实模式切换到保护模式时，引导加载程序（如 GRUB） 或操作系统内核需手动设置 IDT，包括定义中断门、陷阱门等描述符，并通过 LIDT 指令加载 IDT 的基地址和界限到 IDTR 寄存器56。
+例如，Linux 内核的 setup.s 代码在引导阶段初始化 IDT 和 GDT，为保护模式的中断机制做准备
+UEFI# UEFI：UEFI 固件可能初始化临时 IDT，但最终由操作系统内核接管并重建完整的 IDT
+UEFI 固件的角色# UEFI 原生运行在保护模式（或长模式），其固件已初始化基础的内存管理和中断框架，可能包含临时 IDT 用于 UEFI 自身的服务（如安全启动、硬件检测等）1。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="访问外设的两种方式# 内存映射： 通过地址总线将外设自己的内存映射到某个内存区域（并不是映射到主板上插的内存条中）。 端口操作：外设都有自己的控制器，控制器上有寄存器，这些寄存器就是所谓的端口，通过 in/out 指令读写端口来访问硬件的内存。 中断向量表# CPU 收到中断后，得知道发生了什么事情才能执行相应的处理办法。这是通过中断向量表或中断描述 符表（中断向量表是实模式下的中断处理程序数组，在保护模式下已经被中断描述符表代替，
+而 Linux 内核是在进入保护模式后才建立中断例程的，不过在保护模式下，中断向量表已经不存在了， 取而代之的是中断描述符表（Interrupt Descriptor Table， IDT）。
+如果在实模式下执行 int 指令，会自动去访问中断向量表。如果在保护模式下执行 int 指令，则会自动访问中断描述符表。
+中断描述符表# LEGACY# Legacy BIOS：IDT 由操作系统在引导阶段创建，BIOS 仅提供实模式的中断向量表
+BIOS 的角色# BIOS 在实模式下提供中断向量表（IVT），其固定地址为 0x00000，包含实模式下的中断服务程序入口（如 INT 10h 显示服务、INT 13h 磁盘服务等）8910。
+BIOS 不涉及保护模式的中断管理，仅负责实模式下的硬件初始化和基本中断支持。
+操作系统的职责# 当系统从实模式切换到保护模式时，引导加载程序（如 GRUB） 或操作系统内核需手动设置 IDT，包括定义中断门、陷阱门等描述符，并通过 LIDT 指令加载 IDT 的基地址和界限到 IDTR 寄存器56。
+例如，Linux 内核的 setup.s 代码在引导阶段初始化 IDT 和 GDT，为保护模式的中断机制做准备
+UEFI# UEFI：UEFI 固件可能初始化临时 IDT，但最终由操作系统内核接管并重建完整的 IDT
+UEFI 固件的角色# UEFI 原生运行在保护模式（或长模式），其固件已初始化基础的内存管理和中断框架，可能包含临时 IDT 用于 UEFI 自身的服务（如安全启动、硬件检测等）1。">
+  <meta itemprop="wordCount" content="107">
+
+<title>计算机通识 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E8%AE%A1%E7%AE%97%E6%9C%BA%E9%80%9A%E8%AF%86/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>计算机通识</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#访问外设的两种方式">访问外设的两种方式</a></li>
+    <li><a href="#中断向量表">中断向量表</a></li>
+    <li><a href="#中断描述符表">中断描述符表</a>
+      <ul>
+        <li><a href="#legacy">LEGACY</a></li>
+        <li><a href="#uefi">UEFI</a></li>
+        <li><a href="#关键区别对比">关键区别对比</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>计算机通识</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="访问外设的两种方式">访问外设的两种方式<a class="anchor" href="#%e8%ae%bf%e9%97%ae%e5%a4%96%e8%ae%be%e7%9a%84%e4%b8%a4%e7%a7%8d%e6%96%b9%e5%bc%8f">#</a></h1>
+<ol>
+<li>内存映射： 通过地址总线将外设自己的内存映射到某个内存区域（并不是映射到主板上插的内存条中）。</li>
+<li>端口操作：外设都有自己的控制器，控制器上有寄存器，这些寄存器就是所谓的端口，通过 in/out
+指令读写端口来访问硬件的内存。</li>
+</ol>
+<h1 id="中断向量表">中断向量表<a class="anchor" href="#%e4%b8%ad%e6%96%ad%e5%90%91%e9%87%8f%e8%a1%a8">#</a></h1>
+<ul>
+<li>
+<p>CPU 收到中断后，得知道发生了什么事情才能执行相应的处理办法。这是通过中断向量表或中断描述
+符表（中断向量表是实模式下的中断处理程序数组，在保护模式下已经被中断描述符表代替，</p>
+</li>
+<li>
+<p>而 Linux 内核是在进入保护模式后才建立中断例程的，不过在保护模式下，中断向量表已经不存在了，
+取而代之的是中断描述符表（Interrupt Descriptor Table， IDT）。</p>
+</li>
+<li>
+<p>如果在实模式下执行 int 指令，会自动去访问中断向量表。如果在保护模式下执行 int 指令，则会自动访问中断描述符表。</p>
+</li>
+</ul>
+<h1 id="中断描述符表">中断描述符表<a class="anchor" href="#%e4%b8%ad%e6%96%ad%e6%8f%8f%e8%bf%b0%e7%ac%a6%e8%a1%a8">#</a></h1>
+<h2 id="legacy">LEGACY<a class="anchor" href="#legacy">#</a></h2>
+<blockquote class='book-hint '>
+<p>Legacy BIOS：IDT 由操作系统在引导阶段创建，BIOS 仅提供实模式的中断向量表</p>
+</blockquote><h3 id="bios-的角色">BIOS 的角色<a class="anchor" href="#bios-%e7%9a%84%e8%a7%92%e8%89%b2">#</a></h3>
+<ul>
+<li>
+<p>BIOS 在实模式下提供中断向量表（IVT），其固定地址为 0x00000，包含实模式下的中断服务程序入口（如 INT 10h 显示服务、INT 13h 磁盘服务等）8910。</p>
+</li>
+<li>
+<p>BIOS 不涉及保护模式的中断管理，仅负责实模式下的硬件初始化和基本中断支持。</p>
+</li>
+</ul>
+<h3 id="操作系统的职责">操作系统的职责<a class="anchor" href="#%e6%93%8d%e4%bd%9c%e7%b3%bb%e7%bb%9f%e7%9a%84%e8%81%8c%e8%b4%a3">#</a></h3>
+<ul>
+<li>
+<p>当系统从实模式切换到保护模式时，引导加载程序（如 GRUB） 或操作系统内核需手动设置 IDT，包括定义中断门、陷阱门等描述符，并通过 LIDT 指令加载 IDT 的基地址和界限到 IDTR 寄存器56。</p>
+</li>
+<li>
+<p>例如，Linux 内核的 setup.s 代码在引导阶段初始化 IDT 和 GDT，为保护模式的中断机制做准备</p>
+</li>
+</ul>
+<h2 id="uefi">UEFI<a class="anchor" href="#uefi">#</a></h2>
+<blockquote class='book-hint '>
+<p>UEFI：UEFI 固件可能初始化临时 IDT，但最终由操作系统内核接管并重建完整的 IDT</p>
+</blockquote><h3 id="uefi-固件的角色">UEFI 固件的角色<a class="anchor" href="#uefi-%e5%9b%ba%e4%bb%b6%e7%9a%84%e8%a7%92%e8%89%b2">#</a></h3>
+<ul>
+<li>
+<p>UEFI 原生运行在保护模式（或长模式），其固件已初始化基础的内存管理和中断框架，可能包含临时 IDT 用于 UEFI 自身的服务（如安全启动、硬件检测等）1。</p>
+</li>
+<li>
+<p>UEFI 提供启动服务（EFI_BOOT_SERVICES），允许操作系统调用固件接口获取硬件信息，但不直接暴露 IDT 的配置细节。</p>
+</li>
+</ul>
+<h3 id="操作系统的职责-1">操作系统的职责<a class="anchor" href="#%e6%93%8d%e4%bd%9c%e7%b3%bb%e7%bb%9f%e7%9a%84%e8%81%8c%e8%b4%a3-1">#</a></h3>
+<ul>
+<li>
+<p>操作系统内核在接管控制权后（退出 UEFI 启动服务环境时），需重新初始化自己的 IDT，以适配内核的中断处理逻辑（例如定义系统调用、硬件异常等）</p>
+</li>
+<li>
+<p>UEFI 模式下，操作系统无需手动开启 A20 地址线或设置 GDT（UEFI 已提供），但 IDT 仍需由内核根据自身需求定制。</p>
+</li>
+</ul>
+<h2 id="关键区别对比">关键区别对比<a class="anchor" href="#%e5%85%b3%e9%94%ae%e5%8c%ba%e5%88%ab%e5%af%b9%e6%af%94">#</a></h2>
+<table>
+  <thead>
+      <tr>
+          <th>模式</th>
+          <th>IDT 创建主体</th>
+          <th>中断管理阶段</th>
+          <th>依赖的固件功能</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Legacy BIOS</strong></td>
+          <td>操作系统（引导加载程序/内核）</td>
+          <td>保护模式切换后</td>
+          <td>仅实模式 IVT，无 IDT 支持</td>
+      </tr>
+      <tr>
+          <td><strong>UEFI</strong></td>
+          <td>操作系统（内核）</td>
+          <td>内核初始化阶段</td>
+          <td>UEFI 提供临时中断框架</td>
+      </tr>
+  </tbody>
+</table>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E6%B1%87%E7%BC%96%E8%AF%AD%E6%B3%95/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>汇编语法</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%9C%9F%E7%9B%B8%E8%BF%98%E5%8E%9F/%E9%81%97%E7%95%99%E9%97%AE%E9%A2%98/" class="flex align-center">
+      <span>遗留问题</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#访问外设的两种方式">访问外设的两种方式</a></li>
+    <li><a href="#中断向量表">中断向量表</a></li>
+    <li><a href="#中断描述符表">中断描述符表</a>
+      <ul>
+        <li><a href="#legacy">LEGACY</a></li>
+        <li><a href="#uefi">UEFI</a></li>
+        <li><a href="#关键区别对比">关键区别对比</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="资料# RTOS内核实现# https://www.bilibili.com/video/BV1Ar4y1C7En?spm_id_from=333.788.videopod.episodes&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4&amp;p=14
+[野火®]《FreeRTOS&#43;内核实现与应用开发实战—基于STM32》.pdf
+RTOS 系统教程# https://www.bilibili.com/video/BV1Jw411i7Fz?spm_id_from=333.788.recommend_more_video.0&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+列表# 在RTOS中，列表通常用于管理任务、消息或事件的集合。可以是就绪任务列表、延时任务列表等
+列表项# 列表中的每一个任务、消息或事件都是一个列表项，包含相关的信息，如任务状态、优先级等。
+就绪任务列表# 存储所有已准备好运行的任务。RTOS调度器会从此列表中选择任务进行执行。
+延时任务列表# 存储那些在未来某个时间点需要执行的任务。这些任务在达到预定时间时会被移动到就绪任务列表中。
+挂起任务列表# 任务体都不能是无限循环的，必须调用能将自己挂起的函数 ，比如 vTaskDelay()。 调用能将任务挂起的函数中，都会先将任务从就绪列表删除，
+删除任务列表# 任务状态# FreeRTOS 系统中的每一任务都有多种运行状态。系统初始化完成后，创建的任务就可 以在系统中竞争一定的资源，由内核进行调度
+就绪（ Ready）# 任务在就绪列表中， 就绪的任务已经具备执行的能力，只等待调度器进行调度，新创建的任务会初始化为就绪态
+不加阻塞列表的阻塞延时实现# 实现任务延时函数 给当前任务TCB设置延时时间，切换任务
+时钟中断中做处理 遍历就绪任务中的延时时间，非零则减少1
+任务转换函数中处理 判断就绪列表中任务延时时间变量是否为0，不为0不调度
+运行（Running）# 该状态表明任务正在执行， 此时它占用处理器， FreeRTOS 调度器选择运行的永远是处于最高优先级的就绪态任务，当任务被运行的一刻，它的任务状态就变成了运行态 就绪列表中优先级最高的那个 阻塞（Blocked）# 如果任务当前正在等待某个时序或外部中断，我们就说这个任务处于阻塞状态，该任务不在就绪列表中。 包含任务被挂起、 任务被延时、任务正在等待信号量、读写队列或者等待读写事件等 通过阻塞列表实现阻塞延时# 实现任务延时函数
+将当前任务插入延时列表（prvAddCurrentTaskToDelayedList） prvAddCurrentTaskToDelayedList 将任务从就绪列表中移除 计算延时到期时，系统时基计数器xTickCount的值是多少 xTimeToWake = xConstTickCount &#43; xTicksToWait; 将延时到期的值设置为节点的排序值(xStateListItem) 判断xTimeToWake是否溢出 溢出： 任务按照升序加入溢出延时列表 不溢出： 任务加入升序延时列表 如果xTimeToWake小于xNextTaskUnblockTime ，更新下一个任务解锁时刻变量 xNextTaskUnblockTime的值 时钟中断中处理
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/rtos/rtos/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="RTOS">
+  <meta property="og:description" content="资料# RTOS内核实现# https://www.bilibili.com/video/BV1Ar4y1C7En?spm_id_from=333.788.videopod.episodes&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4&amp;p=14
+[野火®]《FreeRTOS&#43;内核实现与应用开发实战—基于STM32》.pdf
+RTOS 系统教程# https://www.bilibili.com/video/BV1Jw411i7Fz?spm_id_from=333.788.recommend_more_video.0&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+列表# 在RTOS中，列表通常用于管理任务、消息或事件的集合。可以是就绪任务列表、延时任务列表等
+列表项# 列表中的每一个任务、消息或事件都是一个列表项，包含相关的信息，如任务状态、优先级等。
+就绪任务列表# 存储所有已准备好运行的任务。RTOS调度器会从此列表中选择任务进行执行。
+延时任务列表# 存储那些在未来某个时间点需要执行的任务。这些任务在达到预定时间时会被移动到就绪任务列表中。
+挂起任务列表# 任务体都不能是无限循环的，必须调用能将自己挂起的函数 ，比如 vTaskDelay()。 调用能将任务挂起的函数中，都会先将任务从就绪列表删除，
+删除任务列表# 任务状态# FreeRTOS 系统中的每一任务都有多种运行状态。系统初始化完成后，创建的任务就可 以在系统中竞争一定的资源，由内核进行调度
+就绪（ Ready）# 任务在就绪列表中， 就绪的任务已经具备执行的能力，只等待调度器进行调度，新创建的任务会初始化为就绪态
+不加阻塞列表的阻塞延时实现# 实现任务延时函数 给当前任务TCB设置延时时间，切换任务
+时钟中断中做处理 遍历就绪任务中的延时时间，非零则减少1
+任务转换函数中处理 判断就绪列表中任务延时时间变量是否为0，不为0不调度
+运行（Running）# 该状态表明任务正在执行， 此时它占用处理器， FreeRTOS 调度器选择运行的永远是处于最高优先级的就绪态任务，当任务被运行的一刻，它的任务状态就变成了运行态 就绪列表中优先级最高的那个 阻塞（Blocked）# 如果任务当前正在等待某个时序或外部中断，我们就说这个任务处于阻塞状态，该任务不在就绪列表中。 包含任务被挂起、 任务被延时、任务正在等待信号量、读写队列或者等待读写事件等 通过阻塞列表实现阻塞延时# 实现任务延时函数
+将当前任务插入延时列表（prvAddCurrentTaskToDelayedList） prvAddCurrentTaskToDelayedList 将任务从就绪列表中移除 计算延时到期时，系统时基计数器xTickCount的值是多少 xTimeToWake = xConstTickCount &#43; xTicksToWait; 将延时到期的值设置为节点的排序值(xStateListItem) 判断xTimeToWake是否溢出 溢出： 任务按照升序加入溢出延时列表 不溢出： 任务加入升序延时列表 如果xTimeToWake小于xNextTaskUnblockTime ，更新下一个任务解锁时刻变量 xNextTaskUnblockTime的值 时钟中断中处理">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="RTOS">
+  <meta itemprop="description" content="资料# RTOS内核实现# https://www.bilibili.com/video/BV1Ar4y1C7En?spm_id_from=333.788.videopod.episodes&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4&amp;p=14
+[野火®]《FreeRTOS&#43;内核实现与应用开发实战—基于STM32》.pdf
+RTOS 系统教程# https://www.bilibili.com/video/BV1Jw411i7Fz?spm_id_from=333.788.recommend_more_video.0&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4
+列表# 在RTOS中，列表通常用于管理任务、消息或事件的集合。可以是就绪任务列表、延时任务列表等
+列表项# 列表中的每一个任务、消息或事件都是一个列表项，包含相关的信息，如任务状态、优先级等。
+就绪任务列表# 存储所有已准备好运行的任务。RTOS调度器会从此列表中选择任务进行执行。
+延时任务列表# 存储那些在未来某个时间点需要执行的任务。这些任务在达到预定时间时会被移动到就绪任务列表中。
+挂起任务列表# 任务体都不能是无限循环的，必须调用能将自己挂起的函数 ，比如 vTaskDelay()。 调用能将任务挂起的函数中，都会先将任务从就绪列表删除，
+删除任务列表# 任务状态# FreeRTOS 系统中的每一任务都有多种运行状态。系统初始化完成后，创建的任务就可 以在系统中竞争一定的资源，由内核进行调度
+就绪（ Ready）# 任务在就绪列表中， 就绪的任务已经具备执行的能力，只等待调度器进行调度，新创建的任务会初始化为就绪态
+不加阻塞列表的阻塞延时实现# 实现任务延时函数 给当前任务TCB设置延时时间，切换任务
+时钟中断中做处理 遍历就绪任务中的延时时间，非零则减少1
+任务转换函数中处理 判断就绪列表中任务延时时间变量是否为0，不为0不调度
+运行（Running）# 该状态表明任务正在执行， 此时它占用处理器， FreeRTOS 调度器选择运行的永远是处于最高优先级的就绪态任务，当任务被运行的一刻，它的任务状态就变成了运行态 就绪列表中优先级最高的那个 阻塞（Blocked）# 如果任务当前正在等待某个时序或外部中断，我们就说这个任务处于阻塞状态，该任务不在就绪列表中。 包含任务被挂起、 任务被延时、任务正在等待信号量、读写队列或者等待读写事件等 通过阻塞列表实现阻塞延时# 实现任务延时函数
+将当前任务插入延时列表（prvAddCurrentTaskToDelayedList） prvAddCurrentTaskToDelayedList 将任务从就绪列表中移除 计算延时到期时，系统时基计数器xTickCount的值是多少 xTimeToWake = xConstTickCount &#43; xTicksToWait; 将延时到期的值设置为节点的排序值(xStateListItem) 判断xTimeToWake是否溢出 溢出： 任务按照升序加入溢出延时列表 不溢出： 任务加入升序延时列表 如果xTimeToWake小于xNextTaskUnblockTime ，更新下一个任务解锁时刻变量 xNextTaskUnblockTime的值 时钟中断中处理">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="218">
+
+<title>RTOS | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/rtos/rtos/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.5b008f8c1566301b4dc62b7ecde26948618c2a123f361c581a6dad0cf936fe51.js" integrity="sha256-WwCPjBVmMBtNxit&#43;zeJpSGGMKhI/NhxYGm2tDPk2/lE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>RTOS</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#资料">资料</a>
+      <ul>
+        <li><a href="#rtos内核实现">RTOS内核实现</a></li>
+        <li><a href="#rtos-系统教程">RTOS 系统教程</a></li>
+      </ul>
+    </li>
+    <li><a href="#列表">列表</a></li>
+    <li><a href="#列表项">列表项</a></li>
+    <li><a href="#就绪任务列表">就绪任务列表</a></li>
+    <li><a href="#延时任务列表">延时任务列表</a></li>
+    <li><a href="#挂起任务列表">挂起任务列表</a></li>
+    <li><a href="#删除任务列表">删除任务列表</a></li>
+    <li><a href="#任务状态">任务状态</a>
+      <ul>
+        <li><a href="#就绪-ready">就绪（ Ready）</a></li>
+        <li><a href="#运行running">运行（Running）</a></li>
+        <li><a href="#阻塞blocked">阻塞（Blocked）</a></li>
+        <li><a href="#挂起态suspended">挂起态(Suspended)：</a></li>
+      </ul>
+    </li>
+    <li><a href="#任务调度">任务调度</a>
+      <ul>
+        <li><a href="#任务切换">任务切换</a></li>
+        <li><a href="#tcb">TCB</a></li>
+        <li><a href="#优先级">优先级</a></li>
+        <li><a href="#时间片">时间片</a></li>
+      </ul>
+    </li>
+    <li><a href="#队列">队列</a>
+      <ul>
+        <li><a href="#创建队列">创建队列</a></li>
+        <li><a href="#写队列">写队列</a></li>
+        <li><a href="#队列集">队列集</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>RTOS</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="资料">资料<a class="anchor" href="#%e8%b5%84%e6%96%99">#</a></h1>
+<h2 id="rtos内核实现">RTOS内核实现<a class="anchor" href="#rtos%e5%86%85%e6%a0%b8%e5%ae%9e%e7%8e%b0">#</a></h2>
+<p><a href="https://www.bilibili.com/video/BV1Ar4y1C7En?spm_id_from=333.788.videopod.episodes&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4&amp;p=14">https://www.bilibili.com/video/BV1Ar4y1C7En?spm_id_from=333.788.videopod.episodes&vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4&p=14</a></p>
+<p>[野火®]《FreeRTOS+内核实现与应用开发实战—基于STM32》.pdf</p>
+<h2 id="rtos-系统教程">RTOS 系统教程<a class="anchor" href="#rtos-%e7%b3%bb%e7%bb%9f%e6%95%99%e7%a8%8b">#</a></h2>
+<p><a href="https://www.bilibili.com/video/BV1Jw411i7Fz?spm_id_from=333.788.recommend_more_video.0&amp;vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4">https://www.bilibili.com/video/BV1Jw411i7Fz?spm_id_from=333.788.recommend_more_video.0&vd_source=c4a2e9b8e1c3c6159e0c295c79c37ef4</a></p>
+<h1 id="列表">列表<a class="anchor" href="#%e5%88%97%e8%a1%a8">#</a></h1>
+<blockquote class='book-hint '>
+<p>在RTOS中，列表通常用于管理任务、消息或事件的集合。可以是就绪任务列表、延时任务列表等</p>
+</blockquote><h1 id="列表项">列表项<a class="anchor" href="#%e5%88%97%e8%a1%a8%e9%a1%b9">#</a></h1>
+<blockquote class='book-hint '>
+<p>列表中的每一个任务、消息或事件都是一个列表项，包含相关的信息，如任务状态、优先级等。</p>
+</blockquote><h1 id="就绪任务列表">就绪任务列表<a class="anchor" href="#%e5%b0%b1%e7%bb%aa%e4%bb%bb%e5%8a%a1%e5%88%97%e8%a1%a8">#</a></h1>
+<blockquote class='book-hint '>
+<p>存储所有已准备好运行的任务。RTOS调度器会从此列表中选择任务进行执行。</p>
+</blockquote><h1 id="延时任务列表">延时任务列表<a class="anchor" href="#%e5%bb%b6%e6%97%b6%e4%bb%bb%e5%8a%a1%e5%88%97%e8%a1%a8">#</a></h1>
+<blockquote class='book-hint '>
+<p>存储那些在未来某个时间点需要执行的任务。这些任务在达到预定时间时会被移动到就绪任务列表中。</p>
+</blockquote><h1 id="挂起任务列表">挂起任务列表<a class="anchor" href="#%e6%8c%82%e8%b5%b7%e4%bb%bb%e5%8a%a1%e5%88%97%e8%a1%a8">#</a></h1>
+<blockquote class='book-hint '>
+<p>任务体都不能是无限循环的，必须调用能将自己挂起的函数 ，比如 vTaskDelay()。 调用能将任务挂起的函数中，都会先将任务从就绪列表删除，</p>
+</blockquote><h1 id="删除任务列表">删除任务列表<a class="anchor" href="#%e5%88%a0%e9%99%a4%e4%bb%bb%e5%8a%a1%e5%88%97%e8%a1%a8">#</a></h1>
+<h1 id="任务状态">任务状态<a class="anchor" href="#%e4%bb%bb%e5%8a%a1%e7%8a%b6%e6%80%81">#</a></h1>
+<blockquote class='book-hint '>
+<p>FreeRTOS 系统中的每一任务都有多种运行状态。系统初始化完成后，创建的任务就可
+以在系统中竞争一定的资源，由内核进行调度</p>
+</blockquote><h2 id="就绪-ready">就绪（ Ready）<a class="anchor" href="#%e5%b0%b1%e7%bb%aa-ready">#</a></h2>
+<p>任务在就绪列表中， 就绪的任务已经具备执行的能力，只等待调度器进行调度，新创建的任务会初始化为就绪态</p>
+<h3 id="不加阻塞列表的阻塞延时实现">不加阻塞列表的阻塞延时实现<a class="anchor" href="#%e4%b8%8d%e5%8a%a0%e9%98%bb%e5%a1%9e%e5%88%97%e8%a1%a8%e7%9a%84%e9%98%bb%e5%a1%9e%e5%bb%b6%e6%97%b6%e5%ae%9e%e7%8e%b0">#</a></h3>
+<ul>
+<li>实现任务延时函数</li>
+</ul>
+<blockquote class='book-hint '>
+<p>给当前任务TCB设置延时时间，切换任务</p>
+</blockquote><ul>
+<li>时钟中断中做处理</li>
+</ul>
+<blockquote class='book-hint '>
+<p>遍历就绪任务中的延时时间，非零则减少1</p>
+</blockquote><ul>
+<li>任务转换函数中处理</li>
+</ul>
+<blockquote class='book-hint '>
+<p>判断就绪列表中任务延时时间变量是否为0，不为0不调度</p>
+</blockquote><h2 id="运行running">运行（Running）<a class="anchor" href="#%e8%bf%90%e8%a1%8crunning">#</a></h2>
+<ul>
+<li>该状态表明任务正在执行， 此时它占用处理器， FreeRTOS 调度器选择运行的永远是处于最高优先级的就绪态任务，当任务被运行的一刻，它的任务状态就变成了运行态</li>
+<li>就绪列表中优先级最高的那个</li>
+<li></li>
+</ul>
+<h2 id="阻塞blocked">阻塞（Blocked）<a class="anchor" href="#%e9%98%bb%e5%a1%9eblocked">#</a></h2>
+<ul>
+<li>如果任务当前正在等待某个时序或外部中断，我们就说这个任务处于阻塞状态，该任务不在就绪列表中。</li>
+<li>包含任务被挂起、 任务被延时、任务正在等待信号量、读写队列或者等待读写事件等</li>
+</ul>
+<h3 id="通过阻塞列表实现阻塞延时">通过阻塞列表实现阻塞延时<a class="anchor" href="#%e9%80%9a%e8%bf%87%e9%98%bb%e5%a1%9e%e5%88%97%e8%a1%a8%e5%ae%9e%e7%8e%b0%e9%98%bb%e5%a1%9e%e5%bb%b6%e6%97%b6">#</a></h3>
+<ul>
+<li>
+<p>实现任务延时函数</p>
+<ul>
+<li>将当前任务插入延时列表（prvAddCurrentTaskToDelayedList）
+<ul>
+<li>prvAddCurrentTaskToDelayedList
+<ul>
+<li>将任务从就绪列表中移除</li>
+<li>计算延时到期时，系统时基计数器xTickCount的值是多少 xTimeToWake = xConstTickCount + xTicksToWait;</li>
+<li>将延时到期的值设置为节点的排序值(xStateListItem)</li>
+<li>判断xTimeToWake是否溢出
+<ol>
+<li>溢出：</li>
+</ol>
+<ul>
+<li>任务按照升序加入溢出延时列表</li>
+</ul>
+<ol start="2">
+<li>不溢出：</li>
+</ol>
+<ul>
+<li>任务加入升序延时列表</li>
+<li>如果xTimeToWake小于xNextTaskUnblockTime ，更新下一个任务解锁时刻变量 xNextTaskUnblockTime的值</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>时钟中断中处理</p>
+<ul>
+<li>判断当前时基计数器xTickCount是否溢出
+<ol>
+<li>溢出：</li>
+</ol>
+<ul>
+<li>交换 pxDelayedTaskList ，pxOverflowDelayedTaskList指针指向</li>
+<li>获取下一任务解锁时间 xNextTaskUnblockTime
+<ul>
+<li>延时列表第一个成员得到他的排序值，即延时到期值，即下一个任务的解锁时间</li>
+</ul>
+</li>
+</ul>
+<ol start="2">
+<li>不溢出：</li>
+</ol>
+<ul>
+<li>发现有下一延时任务到时 xConstTickCount &gt;= xNextTaskUnblockTime
+<ul>
+<li>出栈所有到时任务</li>
+<li>移除延时列表，根据优先级加入，加入同一优先级就绪列表尾部</li>
+<li>剩下第一个阻塞列表中的任务为下一个到期任务，更新下一个任务解锁时刻变量 xNextTaskUnblockTime</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果新加入的任务优先级高于当前任务则任务切换</li>
+</ul>
+</li>
+</ul>
+<h2 id="挂起态suspended">挂起态(Suspended)：<a class="anchor" href="#%e6%8c%82%e8%b5%b7%e6%80%81suspended">#</a></h2>
+<p>处于挂起态的任务对调度器而言是不可见的， 让一个任务进入挂起状态的唯一办法就是调用 vTaskSuspend()函数；</p>
+<p>我们可以这么理解挂起态与阻塞态的区别，当任务有较长的时间不允许运行
+的时候，我们可以挂起任务，这样子调度器就不会管这个任务的任何信息，直到
+我们调用恢复任务的 API 函数；而任务处于阻塞态的时候，系统还需要判断阻塞
+态的任务是否超时，是否可以解除阻塞。</p>
+<h1 id="任务调度">任务调度<a class="anchor" href="#%e4%bb%bb%e5%8a%a1%e8%b0%83%e5%ba%a6">#</a></h1>
+<h2 id="任务切换">任务切换<a class="anchor" href="#%e4%bb%bb%e5%8a%a1%e5%88%87%e6%8d%a2">#</a></h2>
+<blockquote class='book-hint '>
+<p>在RTOS中，任务切换是指从一个任务切换到另一个任务的过程。RTOS通常会使用时间片轮转或优先级调度来实现任务切换。</p>
+</blockquote><h3 id="中断函数">中断函数<a class="anchor" href="#%e4%b8%ad%e6%96%ad%e5%87%bd%e6%95%b0">#</a></h3>
+<ul>
+<li>PendSV
+PendSV是可以挂起的异常，它和SVC协同使用，顾名思义，PendSV和SVC不同，PendSV可以像普通中断一样被挂起而延迟执行，OS可以利用该特点，等待其他重要任务处理完成后才执行该异常。挂起PendSV的方法是：往NVIC的PendSV挂起寄存器写1。</li>
+<li>SVC
+SVC用于产生调用系统函数的请求，例如操作系统不允许用户应用程序直接访问操作硬件设备，而是通过一些系统服务函数操作硬件设备，当用户程序想要访问某个硬件时，首先触发一个SVC异常，发出对系统服务函数的调用请求，然后操作系统提供的SVC异常服务函数得到执行，该函数再调用操作硬件的系统函数，最终间接访问硬件设备</li>
+</ul>
+<h3 id="切换过程----任务a-任务b-任务a">切换过程   -&gt;任务A-&gt;任务B-&gt;任务A<a class="anchor" href="#%e5%88%87%e6%8d%a2%e8%bf%87%e7%a8%8b----%e4%bb%bb%e5%8a%a1a-%e4%bb%bb%e5%8a%a1b-%e4%bb%bb%e5%8a%a1a">#</a></h3>
+<h4 id="首次执行任务--任务a">首次执行任务  &gt;任务A<a class="anchor" href="#%e9%a6%96%e6%ac%a1%e6%89%a7%e8%a1%8c%e4%bb%bb%e5%8a%a1--%e4%bb%bb%e5%8a%a1a">#</a></h4>
+<blockquote class='book-hint '>
+<p>只切换栈不保存上下文</p>
+</blockquote><ul>
+<li>通过触发 SVC_Handler 进入内核中断。</li>
+<li>通过当前pcb指针找到当前的pcd中任务栈栈顶指针，栈顶指针值存入R0寄存器</li>
+<li>通过R0寄存器将任务栈中的R4-R11依次出栈填充CPU寄存器，同时R0寄存器随出栈过程递增</li>
+<li>将R0寄存器当前指向任务栈的位置赋值给psp寄存器。从而改变CPU执行方向</li>
+<li>通过bx r14指令返回，psp指向的栈中内容依次弹出，其中的R15(PC)决定CPU执行方向。此时的R15来自任务创建时填充的线程函数地址。</li>
+</ul>
+<h4 id="任务a-任务b">任务A-&gt;任务B<a class="anchor" href="#%e4%bb%bb%e5%8a%a1a-%e4%bb%bb%e5%8a%a1b">#</a></h4>
+<h5 id="保存任务a的上下文环境">保存任务A的上下文环境<a class="anchor" href="#%e4%bf%9d%e5%ad%98%e4%bb%bb%e5%8a%a1a%e7%9a%84%e4%b8%8a%e4%b8%8b%e6%96%87%e7%8e%af%e5%a2%83">#</a></h5>
+<ul>
+<li>通过触发 PendSV_Handler 进入内核中断</li>
+<li>此时xPSR，PC（R15），R14，R12，R3，R2，R1，R0（任务的形参）这些CPU寄存器的值会自动保存到任务的栈中</li>
+<li>此时栈中PC指针指向进入中断前函数执行位置。</li>
+<li>通过当前pcb指针找到当前的pcd中任务栈栈顶指针，栈顶指针值存入R2寄存器</li>
+<li>当前psp指向的栈顶位置赋值给R0寄存器</li>
+<li>将CPU r4-r11的寄存器依次复制给R0指向的栈中，R0同时递增。最终指向存放R4的栈位置</li>
+<li>将此时R0的值赋值到TCB中的栈顶指针成员，完成任务A栈顶指针更新，完成任务A上下文环境保存。</li>
+</ul>
+<h5 id="切换到任务b的上下文环境">切换到任务B的上下文环境<a class="anchor" href="#%e5%88%87%e6%8d%a2%e5%88%b0%e4%bb%bb%e5%8a%a1b%e7%9a%84%e4%b8%8a%e4%b8%8b%e6%96%87%e7%8e%af%e5%a2%83">#</a></h5>
+<ul>
+<li>调用vTaskSwitchContext将变量pxCurrentTCB指向新的任务</li>
+<li>通过当前pcb指针找到当前的pcd中任务栈栈顶指针，栈顶指针值存入R0寄存器</li>
+<li>通过R0寄存器将任务栈中的R4-R11依次出栈填充CPU寄存器，同时R0寄存器随出栈过程递增</li>
+<li>将R0寄存器当前指向任务栈的位置赋值给psp寄存器。从而改变CPU执行方向</li>
+<li>通过bx r14指令返回，psp指向的栈中内容依次弹出，其中的R15(PC)决定CPU执行方向。此时的R15来自任务创建时填充的线程函数地址。</li>
+</ul>
+<h4 id="任务b-任务a">任务B-&gt;任务A<a class="anchor" href="#%e4%bb%bb%e5%8a%a1b-%e4%bb%bb%e5%8a%a1a">#</a></h4>
+<h5 id="保存任务b的上下文环境">保存任务B的上下文环境<a class="anchor" href="#%e4%bf%9d%e5%ad%98%e4%bb%bb%e5%8a%a1b%e7%9a%84%e4%b8%8a%e4%b8%8b%e6%96%87%e7%8e%af%e5%a2%83">#</a></h5>
+<ul>
+<li>通过触发 PendSV_Handler 进入内核中断</li>
+<li>此时xPSR，PC（R15），R14，R12，R3，R2，R1，R0（任务的形参）这些CPU寄存器的值会自动保存到任务的栈中</li>
+<li>此时栈中PC指针指向进入中断前函数执行位置。</li>
+<li>通过当前pcb指针找到当前的pcd中任务栈栈顶指针，栈顶指针值存入R2寄存器</li>
+<li>当前psp指向的栈顶位置赋值给R0寄存器</li>
+<li>将CPU r4-r11的寄存器依次复制给R0指向的栈中，R0同时递增。最终指向存放R4的栈位置</li>
+<li>将此时R0的值赋值到TCB中的栈顶指针成员，完成任务B栈顶指针更新，完成任务B上下文环境保存。</li>
+</ul>
+<h5 id="切换到任务a的上下文环境">切换到任务A的上下文环境<a class="anchor" href="#%e5%88%87%e6%8d%a2%e5%88%b0%e4%bb%bb%e5%8a%a1a%e7%9a%84%e4%b8%8a%e4%b8%8b%e6%96%87%e7%8e%af%e5%a2%83">#</a></h5>
+<ul>
+<li>调用vTaskSwitchContext将变量pxCurrentTCB指向新的任务</li>
+<li>通过当前pcb指针找到当前的pcd中任务栈栈顶指针，栈顶指针值存入R0寄存器</li>
+<li>通过R0寄存器将任务栈中的R4-R11依次出栈填充CPU寄存器，同时R0寄存器随出栈过程递增</li>
+<li>将R0寄存器当前指向任务栈的位置赋值给psp寄存器。从而改变CPU执行方向</li>
+<li>通过bx r14指令返回，psp指向的栈中内容依次弹出，其中的R15(PC)决定CPU执行方向。此时的R15来自上次保存的PC指针，即上次进入中断时的执行位置。</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e4%bb%bb%e5%8a%a1%e6%a0%88%e6%9c%80%e5%b0%8f%e5%86%85%e5%ae%b9.PNG">
+    <img src="/images/%e4%bb%bb%e5%8a%a1%e6%a0%88%e6%9c%80%e5%b0%8f%e5%86%85%e5%ae%b9.PNG" 
+         alt="任务栈最小内容" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="tcb">TCB<a class="anchor" href="#tcb">#</a></h2>
+<blockquote class='book-hint '>
+<p>TCB（任务控制块）是实时操作系统（RTOS）中用于管理任务的数据结构。每个任务在RTOS中都有一个对应的TCB，用于存储任务的状态、优先级、堆栈指针等信息。以下是TCB的一些重要信息：</p>
+</blockquote><h2 id="优先级">优先级<a class="anchor" href="#%e4%bc%98%e5%85%88%e7%ba%a7">#</a></h2>
+<blockquote class='book-hint '>
+<p>RTOS中的任务通常具有优先级，优先级高的任务会先于优先级低的任务执行。调度算法会根据优先级来选择执行的任务</p>
+</blockquote><h2 id="时间片">时间片<a class="anchor" href="#%e6%97%b6%e9%97%b4%e7%89%87">#</a></h2>
+<blockquote class='book-hint '>
+<p>在RTOS中，时间片是分配给每个任务的执行时间段。时间片结束后，RTOS会进行任务切换，允许其他任务获得CPU资源。</p>
+</blockquote><h1 id="队列">队列<a class="anchor" href="#%e9%98%9f%e5%88%97">#</a></h1>
+<blockquote class='book-hint '>
+<p>队列又称消息队列，是一种常用于任务间通信的数据结构</p>
+</blockquote><ul>
+<li>消息队列是一种异步的通信方式</li>
+</ul>
+<h2 id="创建队列">创建队列<a class="anchor" href="#%e5%88%9b%e5%bb%ba%e9%98%9f%e5%88%97">#</a></h2>
+<blockquote class='book-hint '>
+<p>创建消息队列时 FreeRTOS 会先给消息队列分配一块内存空间</p>
+</blockquote><p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e6%b6%88%e6%81%af%e9%98%9f%e5%88%97%e5%86%85%e5%ad%98%e6%a6%82%e8%a6%81%e5%9b%be.PNG">
+    <img src="/images/%e6%b6%88%e6%81%af%e9%98%9f%e5%88%97%e5%86%85%e5%ad%98%e6%a6%82%e8%a6%81%e5%9b%be.PNG" 
+         alt="消息队列内存概要图" 
+         />
+  </a>
+</div>
+</p>
+<ul>
+<li>
+<p>这块内存的大小等于消息队列控制块大小加上（单个消息空间大小与消息队列长度的乘积）</p>
+</li>
+<li>
+<p>FreeRTOS 的消息队列控制块由多个元素组成，当消息队列被创建时，系统会为控制块分配对应的内存空间，用于保存消息队列的一些信息如消息的存储位置，头指针 pcHead、尾指针 pcTail、消息大小 uxItemSize 以及队列长度 uxLength 等。同时每个消息队列都与消息空间在同一段连续的内存空间中，</p>
+</li>
+<li>
+<p>创建成功的时候就已经分配好每个消息空间与消息队列的容量，无法更改，每个消息空间可以存放不大于消息大小 uxItemSize 的任意类型的数据，</p>
+</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/%e6%b6%88%e6%81%af%e9%98%9f%e5%88%97%e6%95%b0%e6%8d%ae%e7%bb%93%e6%9e%84.PNG">
+    <img src="/images/%e6%b6%88%e6%81%af%e9%98%9f%e5%88%97%e6%95%b0%e6%8d%ae%e7%bb%93%e6%9e%84.PNG" 
+         alt="消息队列数据结构" 
+         />
+  </a>
+</div>
+</p>
+<h3 id="api">API<a class="anchor" href="#api">#</a></h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">/* 创建队列: 长度为5，数据大小为4字节(存放一个整数) */</span>
+</span></span><span style="display:flex;"><span>xQueue <span style="color:#f92672">=</span> <span style="color:#a6e22e">xQueueCreate</span>( <span style="color:#ae81ff">5</span>, <span style="color:#66d9ef">sizeof</span>( <span style="color:#66d9ef">int32_t</span> ) );</span></span></code></pre></div><h2 id="写队列">写队列<a class="anchor" href="#%e5%86%99%e9%98%9f%e5%88%97">#</a></h2>
+<h3 id="api-1">API<a class="anchor" href="#api-1">#</a></h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">/* 写队列
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* xQueue: 写哪个队列
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* &amp;lValueToSend: 写什么数据? 传入数据的地址, 会从这个地址把数据复制进队列
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">* 0: 不阻塞, 如果队列满的话, 写入失败, 立刻返回
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">*/</span>
+</span></span><span style="display:flex;"><span>xStatus <span style="color:#f92672">=</span> <span style="color:#a6e22e">xQueueSendToBack</span>( xQueue, <span style="color:#f92672">&amp;</span>lValueToSend, <span style="color:#ae81ff">0</span> );</span></span></code></pre></div><h2 id="队列集">队列集<a class="anchor" href="#%e9%98%9f%e5%88%97%e9%9b%86">#</a></h2>
+<blockquote class='book-hint '>
+<p>队列集的本质也是队列，存放的内容是队列的句柄</p>
+</blockquote></div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/rtos/%E9%97%AE%E9%A2%98/" class="flex align-center">
+      <span>问题</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#资料">资料</a>
+      <ul>
+        <li><a href="#rtos内核实现">RTOS内核实现</a></li>
+        <li><a href="#rtos-系统教程">RTOS 系统教程</a></li>
+      </ul>
+    </li>
+    <li><a href="#列表">列表</a></li>
+    <li><a href="#列表项">列表项</a></li>
+    <li><a href="#就绪任务列表">就绪任务列表</a></li>
+    <li><a href="#延时任务列表">延时任务列表</a></li>
+    <li><a href="#挂起任务列表">挂起任务列表</a></li>
+    <li><a href="#删除任务列表">删除任务列表</a></li>
+    <li><a href="#任务状态">任务状态</a>
+      <ul>
+        <li><a href="#就绪-ready">就绪（ Ready）</a></li>
+        <li><a href="#运行running">运行（Running）</a></li>
+        <li><a href="#阻塞blocked">阻塞（Blocked）</a></li>
+        <li><a href="#挂起态suspended">挂起态(Suspended)：</a></li>
+      </ul>
+    </li>
+    <li><a href="#任务调度">任务调度</a>
+      <ul>
+        <li><a href="#任务切换">任务切换</a></li>
+        <li><a href="#tcb">TCB</a></li>
+        <li><a href="#优先级">优先级</a></li>
+        <li><a href="#时间片">时间片</a></li>
+      </ul>
+    </li>
+    <li><a href="#队列">队列</a>
+      <ul>
+        <li><a href="#创建队列">创建队列</a></li>
+        <li><a href="#写队列">写队列</a></li>
+        <li><a href="#队列集">队列集</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
