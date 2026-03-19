@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="问:
+访问时借助mov指令，就如访问常规的物理内存一样。PCI配置空间
+答:
+在x86架构下，访问PCI配置空间并不是直接使用标准的内存访问指令（如mov）。相反，通常会使用特定的I/O指令（如in和out）或通过操作系统提供的API来访问PCI配置空间。PCI配置空间主要用于设备的配置和状态查询，而不是普通的数据读写操作。
+通过I/O端口访问PCI配置空间# 传统方式是通过特殊的I/O端口进行访问，主要使用两个寄存器：
+PCI Configuration Address Register (位于0xCF8地址) PCI Configuration Data Register (位于0xCFC地址) 以下是一个简单的例子，用来读取PCI配置空间中的寄存器：
+; 设置PCI配置地址寄存器 mov eax, 0x80000000 ; 设备位于总线0，设备0，功能0，寄存器0 mov dx, 0xCF8 ; 0xCF8 为 PCI Configuration Address Register out dx, eax ; 将地址写入地址寄存器 ; 读取PCI配置数据寄存器 mov dx, 0xCFC ; 0xCFC 为 PCI Configuration Data Register in eax, dx ; 从数据寄存器读数据到EAX通过操作系统API访问# 大多数现代操作系统提供了访问PCI配置空间的API。以下是一些示例：
+在Linux上# 可以使用lspci工具查看PCI设备信息，或者通过编程接口直接访问。
+lspci -vv数据访问可以通过/sys文件系统来实现，例如：
+int fd; char buf[256]; fd = open(&#34;/sys/bus/pci/devices/0000:00:1f.2/resource0&#34;, O_RDWR); pread(fd, buf, sizeof(buf), 0);在Windows上# 可以使用特定的Windows API，如SetupDiGetClassDevs和SetupDiEnumDeviceInfo来枚举和访问PCI设备。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4%E6%98%AF%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E6%9D%A1%E5%A4%A7%E5%B0%8F%E5%90%97/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="问:
+访问时借助mov指令，就如访问常规的物理内存一样。PCI配置空间
+答:
+在x86架构下，访问PCI配置空间并不是直接使用标准的内存访问指令（如mov）。相反，通常会使用特定的I/O指令（如in和out）或通过操作系统提供的API来访问PCI配置空间。PCI配置空间主要用于设备的配置和状态查询，而不是普通的数据读写操作。
+通过I/O端口访问PCI配置空间# 传统方式是通过特殊的I/O端口进行访问，主要使用两个寄存器：
+PCI Configuration Address Register (位于0xCF8地址) PCI Configuration Data Register (位于0xCFC地址) 以下是一个简单的例子，用来读取PCI配置空间中的寄存器：
+; 设置PCI配置地址寄存器 mov eax, 0x80000000 ; 设备位于总线0，设备0，功能0，寄存器0 mov dx, 0xCF8 ; 0xCF8 为 PCI Configuration Address Register out dx, eax ; 将地址写入地址寄存器 ; 读取PCI配置数据寄存器 mov dx, 0xCFC ; 0xCFC 为 PCI Configuration Data Register in eax, dx ; 从数据寄存器读数据到EAX通过操作系统API访问# 大多数现代操作系统提供了访问PCI配置空间的API。以下是一些示例：
+在Linux上# 可以使用lspci工具查看PCI设备信息，或者通过编程接口直接访问。
+lspci -vv数据访问可以通过/sys文件系统来实现，例如：
+int fd; char buf[256]; fd = open(&#34;/sys/bus/pci/devices/0000:00:1f.2/resource0&#34;, O_RDWR); pread(fd, buf, sizeof(buf), 0);在Windows上# 可以使用特定的Windows API，如SetupDiGetClassDevs和SetupDiEnumDeviceInfo来枚举和访问PCI设备。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="问:
+访问时借助mov指令，就如访问常规的物理内存一样。PCI配置空间
+答:
+在x86架构下，访问PCI配置空间并不是直接使用标准的内存访问指令（如mov）。相反，通常会使用特定的I/O指令（如in和out）或通过操作系统提供的API来访问PCI配置空间。PCI配置空间主要用于设备的配置和状态查询，而不是普通的数据读写操作。
+通过I/O端口访问PCI配置空间# 传统方式是通过特殊的I/O端口进行访问，主要使用两个寄存器：
+PCI Configuration Address Register (位于0xCF8地址) PCI Configuration Data Register (位于0xCFC地址) 以下是一个简单的例子，用来读取PCI配置空间中的寄存器：
+; 设置PCI配置地址寄存器 mov eax, 0x80000000 ; 设备位于总线0，设备0，功能0，寄存器0 mov dx, 0xCF8 ; 0xCF8 为 PCI Configuration Address Register out dx, eax ; 将地址写入地址寄存器 ; 读取PCI配置数据寄存器 mov dx, 0xCFC ; 0xCFC 为 PCI Configuration Data Register in eax, dx ; 从数据寄存器读数据到EAX通过操作系统API访问# 大多数现代操作系统提供了访问PCI配置空间的API。以下是一些示例：
+在Linux上# 可以使用lspci工具查看PCI设备信息，或者通过编程接口直接访问。
+lspci -vv数据访问可以通过/sys文件系统来实现，例如：
+int fd; char buf[256]; fd = open(&#34;/sys/bus/pci/devices/0000:00:1f.2/resource0&#34;, O_RDWR); pread(fd, buf, sizeof(buf), 0);在Windows上# 可以使用特定的Windows API，如SetupDiGetClassDevs和SetupDiEnumDeviceInfo来枚举和访问PCI设备。">
+  <meta itemprop="wordCount" content="178">
+
+<title>内存空间是物理内存条大小吗 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4%E6%98%AF%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E6%9D%A1%E5%A4%A7%E5%B0%8F%E5%90%97/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.3826bca94694f01e98becf124c7b645b76904cc557208607bd0a8125ace7bc9f.js" integrity="sha256-OCa8qUaU8B6Yvs8STHtkW3aQTMVXIIYHvQqBJaznvJ8=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>内存空间是物理内存条大小吗</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>内存空间是物理内存条大小吗</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p><strong>问:</strong></p>
+<p>访问时借助mov指令，就如访问常规的物理内存一样。PCI配置空间</p>
+<hr>
+<p><strong>答:</strong></p>
+<p>在x86架构下，访问PCI配置空间并不是直接使用标准的内存访问指令（如<code>mov</code>）。相反，通常会使用特定的I/O指令（如<code>in</code>和<code>out</code>）或通过操作系统提供的API来访问PCI配置空间。PCI配置空间主要用于设备的配置和状态查询，而不是普通的数据读写操作。</p>
+<h3 id="通过io端口访问pci配置空间">通过I/O端口访问PCI配置空间<a class="anchor" href="#%e9%80%9a%e8%bf%87io%e7%ab%af%e5%8f%a3%e8%ae%bf%e9%97%aepci%e9%85%8d%e7%bd%ae%e7%a9%ba%e9%97%b4">#</a></h3>
+<p>传统方式是通过特殊的I/O端口进行访问，主要使用两个寄存器：</p>
+<ol>
+<li><strong>PCI Configuration Address Register (位于0xCF8地址)</strong></li>
+<li><strong>PCI Configuration Data Register (位于0xCFC地址)</strong></li>
+</ol>
+<p>以下是一个简单的例子，用来读取PCI配置空间中的寄存器：</p>
+<pre tabindex="0"><code class="language-assembly" data-lang="assembly">; 设置PCI配置地址寄存器
+mov eax, 0x80000000       ; 设备位于总线0，设备0，功能0，寄存器0
+mov dx, 0xCF8             ; 0xCF8 为 PCI Configuration Address Register
+out dx, eax               ; 将地址写入地址寄存器
+
+; 读取PCI配置数据寄存器
+mov dx, 0xCFC             ; 0xCFC 为 PCI Configuration Data Register
+in eax, dx                ; 从数据寄存器读数据到EAX</code></pre><h3 id="通过操作系统api访问">通过操作系统API访问<a class="anchor" href="#%e9%80%9a%e8%bf%87%e6%93%8d%e4%bd%9c%e7%b3%bb%e7%bb%9fapi%e8%ae%bf%e9%97%ae">#</a></h3>
+<p>大多数现代操作系统提供了访问PCI配置空间的API。以下是一些示例：</p>
+<h4 id="在linux上">在Linux上<a class="anchor" href="#%e5%9c%a8linux%e4%b8%8a">#</a></h4>
+<p>可以使用<code>lspci</code>工具查看PCI设备信息，或者通过编程接口直接访问。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>lspci -vv</span></span></code></pre></div><p>数据访问可以通过<code>/sys</code>文件系统来实现，例如：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> fd;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">256</span>];
+</span></span><span style="display:flex;"><span>fd <span style="color:#f92672">=</span> <span style="color:#a6e22e">open</span>(<span style="color:#e6db74">&#34;/sys/bus/pci/devices/0000:00:1f.2/resource0&#34;</span>, O_RDWR);
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pread</span>(fd, buf, <span style="color:#66d9ef">sizeof</span>(buf), <span style="color:#ae81ff">0</span>);</span></span></code></pre></div><h4 id="在windows上">在Windows上<a class="anchor" href="#%e5%9c%a8windows%e4%b8%8a">#</a></h4>
+<p>可以使用特定的Windows API，如<code>SetupDiGetClassDevs</code>和<code>SetupDiEnumDeviceInfo</code>来枚举和访问PCI设备。</p>
+<h3 id="通过mmio访问bar基地址寄存器">通过MMIO访问BAR（基地址寄存器）<a class="anchor" href="#%e9%80%9a%e8%bf%87mmio%e8%ae%bf%e9%97%aebar%e5%9f%ba%e5%9c%b0%e5%9d%80%e5%af%84%e5%ad%98%e5%99%a8">#</a></h3>
+<p>虽然PCI配置空间本身不是通过<code>mov</code>指令直接访问的，但是通过配置空间中的BAR，可以将设备的MMIO区域映射到系统内存地址空间，从而可以直接使用内存访问指令（如<code>mov</code>）与设备交互。</p>
+<h3 id="示例利用bar进行mmio访问">示例：利用BAR进行MMIO访问<a class="anchor" href="#%e7%a4%ba%e4%be%8b%e5%88%a9%e7%94%a8bar%e8%bf%9b%e8%a1%8cmmio%e8%ae%bf%e9%97%ae">#</a></h3>
+<p>假设PCI设备的某个BAR配置已经映射到0xFEC00000，当你想访问这个设备的内存映射I/O空间时，可以直接使用标准的内存访问指令：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#define DEVICE_MMIO_BASE 0xFEC00000
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">volatile</span> <span style="color:#66d9ef">uint32_t</span> <span style="color:#f92672">*</span>device_mmio <span style="color:#f92672">=</span> (<span style="color:#66d9ef">volatile</span> <span style="color:#66d9ef">uint32_t</span> <span style="color:#f92672">*</span>)DEVICE_MMIO_BASE;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">uint32_t</span> value;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">/* 读取设备寄存器 */</span>
+</span></span><span style="display:flex;"><span>value <span style="color:#f92672">=</span> device_mmio[<span style="color:#ae81ff">0</span>];  <span style="color:#75715e">// 使用`mov`等指令读取
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">/* 写入设备寄存器 */</span>
+</span></span><span style="display:flex;"><span>device_mmio[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> value;  <span style="color:#75715e">// 使用`mov`等指令写入
+</span></span></span></code></pre></div><h3 id="总结">总结<a class="anchor" href="#%e6%80%bb%e7%bb%93">#</a></h3>
+<ul>
+<li><strong>PCI配置空间</strong>：通常通过I/O指令（如<code>in</code>和<code>out</code>）访问，或者通过操作系统API访问。</li>
+<li><strong>MMIO访问</strong>：设备的BAR将其内存映射到CPU的地址空间，此时可以使用标准内存访问指令如<code>mov</code>来进行操作。</li>
+</ul>
+<p>要记住，在操作系统环境中直接访问硬件资源需要特权级别和适当的机制。一般用户程序不应该直接访问，而是通过操作系统提供的API和驱动来安全地进行交互。</p>
+<hr>
+<p><strong>问:</strong></p>
+<p>内存空间是值内存条的大小吗</p>
+<hr>
+<p><strong>答:</strong></p>
+<p><strong>内存空间</strong>和<strong>内存条的大小</strong>并不是同一个概念，它们有着不同的涵义。在计算机系统中，内存空间通常指的是地址空间（Address Space），而内存条的大小指的是实际的物理内存容量。下面我们来详细解释这两个概念。</p>
+<h3 id="内存地址空间memory-address-space">内存地址空间（Memory Address Space）<a class="anchor" href="#%e5%86%85%e5%ad%98%e5%9c%b0%e5%9d%80%e7%a9%ba%e9%97%b4memory-address-space">#</a></h3>
+<p>内存地址空间是一个计算系统可以使用的所有内存地址的集合。内存地址空间可以远比实际的物理内存要大。</p>
+<ul>
+<li><strong>32位系统</strong>：在32位系统中，地址空间理论上可以达到4GB（2^32字节）。</li>
+<li><strong>64位系统</strong>：在64位系统中，地址空间理论上可以非常大（2^64字节），即16 exabytes，但实际受到硬件和操作系统的限制。</li>
+</ul>
+<p>内存地址空间不仅仅用于映射物理内存，还可以用于映射其他资源，比如：</p>
+<ul>
+<li><strong>内存映射I/O（MMIO）区域</strong>：用于设备或PCI设备的寄存器访问。</li>
+<li><strong>固件区域</strong>（如BIOS或EFI）。</li>
+<li><strong>内存映射文件</strong>。</li>
+</ul>
+<h3 id="物理内存physical-memory">物理内存（Physical Memory）<a class="anchor" href="#%e7%89%a9%e7%90%86%e5%86%85%e5%ad%98physical-memory">#</a></h3>
+<p>物理内存是指计算机实际安装的内存模块（也叫内存条），它提供给系统和应用程序的实际存储空间。</p>
+<ul>
+<li>物理内存的大小由安装的内存条容量决定，例如8GB、16GB、32GB等。</li>
+</ul>
+<h3 id="例子">例子<a class="anchor" href="#%e4%be%8b%e5%ad%90">#</a></h3>
+<p>假设一台计算机有8GB的物理内存（RAM），但其地址空间可能会配置如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>+------------------------------+  
+</span></span><span style="display:flex;"><span>| 高 地址域  （ 比 如 设备 MMIO）   | -&gt; 固件、设备、映射的设备地址空间等
+</span></span><span style="display:flex;"><span>| ...                          |
+</span></span><span style="display:flex;"><span>|                              |
+</span></span><span style="display:flex;"><span>| 物理内存 （RAM）                | -&gt; 实际的8GB RAM
+</span></span><span style="display:flex;"><span>| ...                          |
+</span></span><span style="display:flex;"><span>|                              |
+</span></span><span style="display:flex;"><span>| 低 地址域                    |
+</span></span><span style="display:flex;"><span>+------------------------------+</span></span></code></pre></div><p>这样的话，地址空间的上部分（例如高于8GB的区域）可能被用于映射设备寄存器、系统固件，或者根本未使用，即还可以用于扩展内存。</p>
+<h3 id="实际用途">实际用途<a class="anchor" href="#%e5%ae%9e%e9%99%85%e7%94%a8%e9%80%94">#</a></h3>
+<ol>
+<li><strong>系统和应用程序使用</strong>：系统和应用程序在运行时会将数据放入物理内存，这样CPU可以快速访问这些数据。然而，为了访问这些数据，需要通过内存地址空间进行寻址。</li>
+<li><strong>内存映射I/O（MMIO）</strong>：PCI设备、GPU、其他硬件设备等，通常会使用MMIO的方式，将它们的寄存器和缓冲区映射到内存地址空间中的特定地址。这些地址通过内存访问指令进行操作。</li>
+</ol>
+<h3 id="内存空间是否等于物理内存大小">内存空间是否等于物理内存大小？<a class="anchor" href="#%e5%86%85%e5%ad%98%e7%a9%ba%e9%97%b4%e6%98%af%e5%90%a6%e7%ad%89%e4%ba%8e%e7%89%a9%e7%90%86%e5%86%85%e5%ad%98%e5%a4%a7%e5%b0%8f">#</a></h3>
+<p><strong>不等于。</strong> 内存空间（地址空间）是指处理器可以寻址的所有地址，包括但不限于物理内存。物理内存只是内存空间的一部分。</p>
+<h3 id="总结-1">总结<a class="anchor" href="#%e6%80%bb%e7%bb%93-1">#</a></h3>
+<ul>
+<li><strong>内存地址空间</strong>：一个计算机系统可以使用的所有地址的集合，包含实际物理内存以及其他映射区域。</li>
+<li><strong>物理内存</strong>：实际安装在计算机中的RAM模块，提供存储空间。</li>
+<li><strong>MMIO</strong>：通过映射设备寄存器或内存到内存地址空间，使得这些设备可以通过内存访问指令直接进行操作。</li>
+</ul>
+<p>理解内存地址空间和物理内存的差异，对于系统设计、驱动开发以及优化计算机性能都非常重要。在编写低级程序或开发操作系统时，这些概念尤其重要。</p>
+<hr>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>资料路径</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/%E5%AE%9A%E4%BD%8D%E7%BB%8F%E9%AA%8C/anli/" class="flex align-center">
+      <span>Anli</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

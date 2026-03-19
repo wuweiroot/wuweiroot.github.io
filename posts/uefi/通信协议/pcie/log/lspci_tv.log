@@ -1,0 +1,41 @@
+-+-[0007:00]---00.0-[01-09]----00.0-[02-09]--+-00.0-[03]----00.0  Device 9999:4000
+ |                                           +-01.0-[04]----00.0  Device 9999:4000
+ |                                           +-02.0-[05]--
+ |                                           +-03.0-[06]----00.0  Mellanox Technologies MT2892 Family [ConnectX-6 Dx]
+ |                                           +-04.0-[07]--
+ |                                           +-05.0-[08]--
+ |                                           \-1f.0-[09]----00.0  Broadcom / LSI PCIe Switch management endpoint
+ +-[0006:00]---00.0-[01-09]----00.0-[02-09]--+-00.0-[03]----00.0  Device 9999:4000
+ |                                           +-01.0-[04]----00.0  Device 9999:4000
+ |                                           +-02.0-[05]----00.0  Mellanox Technologies MT2892 Family [ConnectX-6 Dx]
+ |                                           +-03.0-[06]--
+ |                                           +-04.0-[07]--
+ |                                           +-05.0-[08]--
+ |                                           \-1f.0-[09]----00.0  Broadcom / LSI PCIe Switch management endpoint
+ +-[0005:00]---00.0-[01]----00.0  Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx
+ +-[0004:00]-+-00.0-[01]--
+ |           +-01.0-[02]--
+ |           +-02.0-[03]--
+ |           +-03.0-[04]--
+ |           \-04.0-[05]--
+ +-[0003:00]---00.0-[01-09]----00.0-[02-09]--+-00.0-[03]----00.0  Device 9999:4000
+ |                                           +-01.0-[04]----00.0  Mellanox Technologies MT2892 Family [ConnectX-6 Dx]
+ |                                           +-02.0-[05]----00.0  Mellanox Technologies MT2892 Family [ConnectX-6 Dx]
+ |                                           +-03.0-[06]----00.0  Device 9999:4000
+ |                                           +-04.0-[07]--
+ |                                           +-05.0-[08]--
+ |                                           \-1f.0-[09]----00.0  Broadcom / LSI PCIe Switch management endpoint
+ +-[0002:00]---00.0-[01-09]----00.0-[02-09]--+-00.0-[03]----00.0  Device 9999:4000
+ |                                           +-01.0-[04]----00.0  Mellanox Technologies MT2892 Family [ConnectX-6 Dx]
+ |                                           +-02.0-[05]--
+ |                                           +-03.0-[06]----00.0  Device 9999:4000
+ |                                           +-04.0-[07]--
+ |                                           +-05.0-[08]--
+ |                                           \-1f.0-[09]----00.0  Broadcom / LSI PCIe Switch management endpoint
+ +-[0001:00]-+-00.0-[01]--
+ |           \-01.0-[02]----00.0  Phytium Technology Co., Ltd. Device dc3e
+ \-[0000:00]-+-00.0-[01]--
+             +-01.0-[02]--
+             +-02.0-[03]----00.0  Marvell Technology Group Ltd. 88SE9230 PCIe 2.0 x2 4-port SATA 6 Gb/s RAID Controller
+             +-03.0-[04]----00.0  Renesas Technology Corp. uPD720201 USB 3.0 Host Controller
+             \-04.0-[05]----00.0  Renesas Technology Corp. uPD720201 USB 3.0 Host Controller

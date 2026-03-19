@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="USB协议栈总览# USB device driver# edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c# 键盘驱动
+USB bus driver# Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c# usbhub 处理函數
+mUsbHubApi# UsbHub接口
+mUsbRootHubApi# UsbRootHub接口
+edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c# usb总线驱动
+UsbBusControllerDriverStart UsbBusBuildProtocol Status =UsbRootHubApi.Init (RootIf); //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbBus.c Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, TPL_CALLBACK, UsbRootHubEnumeration, HubIf, &amp;HubIf-&gt;HubNotify ); // It should signal the event immediately here, or device detection // by bus enumeration might be delayed by the timer interval. // gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //立即触发轮询 Status = gBS-&gt;SetTimer ( HubIf-&gt;HubNotify, TimerPeriodic, USB_ROOTHUB_POLL_INTERVAL );//定时触发USB枚举 // // Create AsyncInterrupt to query hub port change endpoint // periodically. If the hub ports are changed, hub will return // changed port map from the interrupt endpoint. The port map // must be able to hold (HubIf-&gt;NumOfPort &#43; 1) bits (one bit for // host change status). // UsbIo = &amp;HubIf-&gt;UsbIo; Status = UsbIo-&gt;UsbAsyncInterruptTransfer ( UsbIo, EpDesc-&gt;Desc.EndpointAddress, TRUE, USB_HUB_POLL_INTERVAL, HubIf-&gt;NumOfPort / 8 &#43; 1, UsbOnHubInterrupt, HubIf ); - gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //触发USB枚举 mUsbRootHubApi //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbHub.c UsbRootHubInit // 创建 UsbRootHubEnumeration 事件 UsbRootHubEnumeration UsbEnumeratePort //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbEnumer.c UsbEnumerateNewDev UsbSelectConfig UsbCreateInterface UsbNode.Header.SubType = MSG_USB_DP; Status = gBS-&gt;InstallMultipleProtocolInterfaces ( &amp;(*UsbIf)-&gt;Handle, &amp;gEfiDevicePathProtocolGuid, (*UsbIf)-&gt;DevicePath, &amp;gEfiUsbIoProtocolGuid, &amp;(*UsbIf)-&gt;UsbIo, NULL);mUsbIoProtocol# UsbIo协议
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb%E5%8D%8F%E8%AE%AE%E6%A0%88/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="USB协议栈">
+  <meta property="og:description" content="USB协议栈总览# USB device driver# edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c# 键盘驱动
+USB bus driver# Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c# usbhub 处理函數
+mUsbHubApi# UsbHub接口
+mUsbRootHubApi# UsbRootHub接口
+edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c# usb总线驱动
+UsbBusControllerDriverStart UsbBusBuildProtocol Status =UsbRootHubApi.Init (RootIf); //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbBus.c Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, TPL_CALLBACK, UsbRootHubEnumeration, HubIf, &amp;HubIf-&gt;HubNotify ); // It should signal the event immediately here, or device detection // by bus enumeration might be delayed by the timer interval. // gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //立即触发轮询 Status = gBS-&gt;SetTimer ( HubIf-&gt;HubNotify, TimerPeriodic, USB_ROOTHUB_POLL_INTERVAL );//定时触发USB枚举 // // Create AsyncInterrupt to query hub port change endpoint // periodically. If the hub ports are changed, hub will return // changed port map from the interrupt endpoint. The port map // must be able to hold (HubIf-&gt;NumOfPort &#43; 1) bits (one bit for // host change status). // UsbIo = &amp;HubIf-&gt;UsbIo; Status = UsbIo-&gt;UsbAsyncInterruptTransfer ( UsbIo, EpDesc-&gt;Desc.EndpointAddress, TRUE, USB_HUB_POLL_INTERVAL, HubIf-&gt;NumOfPort / 8 &#43; 1, UsbOnHubInterrupt, HubIf ); - gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //触发USB枚举 mUsbRootHubApi //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbHub.c UsbRootHubInit // 创建 UsbRootHubEnumeration 事件 UsbRootHubEnumeration UsbEnumeratePort //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbEnumer.c UsbEnumerateNewDev UsbSelectConfig UsbCreateInterface UsbNode.Header.SubType = MSG_USB_DP; Status = gBS-&gt;InstallMultipleProtocolInterfaces ( &amp;(*UsbIf)-&gt;Handle, &amp;gEfiDevicePathProtocolGuid, (*UsbIf)-&gt;DevicePath, &amp;gEfiUsbIoProtocolGuid, &amp;(*UsbIf)-&gt;UsbIo, NULL);mUsbIoProtocol# UsbIo协议">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="USB协议栈">
+  <meta itemprop="description" content="USB协议栈总览# USB device driver# edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c# 键盘驱动
+USB bus driver# Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c# usbhub 处理函數
+mUsbHubApi# UsbHub接口
+mUsbRootHubApi# UsbRootHub接口
+edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c# usb总线驱动
+UsbBusControllerDriverStart UsbBusBuildProtocol Status =UsbRootHubApi.Init (RootIf); //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbBus.c Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, TPL_CALLBACK, UsbRootHubEnumeration, HubIf, &amp;HubIf-&gt;HubNotify ); // It should signal the event immediately here, or device detection // by bus enumeration might be delayed by the timer interval. // gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //立即触发轮询 Status = gBS-&gt;SetTimer ( HubIf-&gt;HubNotify, TimerPeriodic, USB_ROOTHUB_POLL_INTERVAL );//定时触发USB枚举 // // Create AsyncInterrupt to query hub port change endpoint // periodically. If the hub ports are changed, hub will return // changed port map from the interrupt endpoint. The port map // must be able to hold (HubIf-&gt;NumOfPort &#43; 1) bits (one bit for // host change status). // UsbIo = &amp;HubIf-&gt;UsbIo; Status = UsbIo-&gt;UsbAsyncInterruptTransfer ( UsbIo, EpDesc-&gt;Desc.EndpointAddress, TRUE, USB_HUB_POLL_INTERVAL, HubIf-&gt;NumOfPort / 8 &#43; 1, UsbOnHubInterrupt, HubIf ); - gBS-&gt;SignalEvent (HubIf-&gt;HubNotify); //触发USB枚举 mUsbRootHubApi //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbHub.c UsbRootHubInit // 创建 UsbRootHubEnumeration 事件 UsbRootHubEnumeration UsbEnumeratePort //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbEnumer.c UsbEnumerateNewDev UsbSelectConfig UsbCreateInterface UsbNode.Header.SubType = MSG_USB_DP; Status = gBS-&gt;InstallMultipleProtocolInterfaces ( &amp;(*UsbIf)-&gt;Handle, &amp;gEfiDevicePathProtocolGuid, (*UsbIf)-&gt;DevicePath, &amp;gEfiUsbIoProtocolGuid, &amp;(*UsbIf)-&gt;UsbIo, NULL);mUsbIoProtocol# UsbIo协议">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="199">
+
+<title>USB协议栈 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb%E5%8D%8F%E8%AE%AE%E6%A0%88/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.3826bca94694f01e98becf124c7b645b76904cc557208607bd0a8125ace7bc9f.js" integrity="sha256-OCa8qUaU8B6Yvs8STHtkW3aQTMVXIIYHvQqBJaznvJ8=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>USB协议栈</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#usb协议栈总览">USB协议栈总览</a></li>
+    <li><a href="#usb-device-driver">USB device driver</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgbususbusbkbdxeefikeyc">edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb-bus-driver">USB bus driver</a>
+      <ul>
+        <li><a href="#edk2mdemodulepkgbususbusbbusdxeusbhubc">Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c</a></li>
+        <li><a href="#edk2-mastermdemodulepkgbususbusbbusdxeusbbusc">edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb-host-driver">USB host driver</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgbuspcixhcidxexhcic">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\Xhci.c</a></li>
+        <li><a href="#edk2-mastermdemodulepkgbuspcixhcidxexhcischedc">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\XhciSched.c</a></li>
+        <li><a href="#xhcmonitorasyncrequests">XhcMonitorAsyncRequests</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>USB协议栈</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="usb协议栈总览">USB协议栈总览<a class="anchor" href="#usb%e5%8d%8f%e8%ae%ae%e6%a0%88%e6%80%bb%e8%a7%88">#</a></h1>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/USB%e8%bd%af%e4%bb%b6%e5%8d%8f%e8%ae%ae%e6%a0%88.png">
+    <img src="/images/USB%e8%bd%af%e4%bb%b6%e5%8d%8f%e8%ae%ae%e6%a0%88.png" 
+         alt="USB软件协议栈" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="usb-device-driver">USB device driver<a class="anchor" href="#usb-device-driver">#</a></h1>
+<h2 id="edk2-mastermdemodulepkgbususbusbkbdxeefikeyc">edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c<a class="anchor" href="#edk2-mastermdemodulepkgbususbusbkbdxeefikeyc">#</a></h2>
+<p>键盘驱动</p>
+<h1 id="usb-bus-driver">USB bus driver<a class="anchor" href="#usb-bus-driver">#</a></h1>
+<h2 id="edk2mdemodulepkgbususbusbbusdxeusbhubc">Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c<a class="anchor" href="#edk2mdemodulepkgbususbusbbusdxeusbhubc">#</a></h2>
+<blockquote class='book-hint '>
+<p>usbhub 处理函數</p>
+</blockquote><h3 id="musbhubapi">mUsbHubApi<a class="anchor" href="#musbhubapi">#</a></h3>
+<blockquote class='book-hint '>
+<p>UsbHub接口</p>
+</blockquote><h3 id="musbroothubapi">mUsbRootHubApi<a class="anchor" href="#musbroothubapi">#</a></h3>
+<blockquote class='book-hint '>
+<p>UsbRootHub接口</p>
+</blockquote><h2 id="edk2-mastermdemodulepkgbususbusbbusdxeusbbusc">edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c<a class="anchor" href="#edk2-mastermdemodulepkgbususbusbbusdxeusbbusc">#</a></h2>
+<blockquote class='book-hint '>
+<p>usb总线驱动</p>
+</blockquote><ul>
+<li>UsbBusControllerDriverStart</li>
+<li>UsbBusBuildProtocol
+Status =UsbRootHubApi.Init (RootIf); //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbBus.c
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>  Status <span style="color:#f92672">=</span> gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">CreateEvent</span> (
+</span></span><span style="display:flex;"><span>              EVT_NOTIFY_SIGNAL,
+</span></span><span style="display:flex;"><span>              TPL_CALLBACK,
+</span></span><span style="display:flex;"><span>              UsbRootHubEnumeration,
+</span></span><span style="display:flex;"><span>              HubIf,
+</span></span><span style="display:flex;"><span>              <span style="color:#f92672">&amp;</span>HubIf<span style="color:#f92672">-&gt;</span>HubNotify
+</span></span><span style="display:flex;"><span>              );
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// It should signal the event immediately here, or device detection
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// by bus enumeration might be delayed by the timer interval.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span>gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">SignalEvent</span> (HubIf<span style="color:#f92672">-&gt;</span>HubNotify);  <span style="color:#75715e">//立即触发轮询
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Status <span style="color:#f92672">=</span> gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">SetTimer</span> (
+</span></span><span style="display:flex;"><span>                HubIf<span style="color:#f92672">-&gt;</span>HubNotify,
+</span></span><span style="display:flex;"><span>                TimerPeriodic,
+</span></span><span style="display:flex;"><span>                USB_ROOTHUB_POLL_INTERVAL
+</span></span><span style="display:flex;"><span>                );<span style="color:#75715e">//定时触发USB枚举
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Create AsyncInterrupt to query hub port change endpoint
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// periodically. If the hub ports are changed, hub will return
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// changed port map from the interrupt endpoint. The port map
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// must be able to hold (HubIf-&gt;NumOfPort + 1) bits (one bit for
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// host change status).
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span>UsbIo  <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>HubIf<span style="color:#f92672">-&gt;</span>UsbIo;
+</span></span><span style="display:flex;"><span>Status <span style="color:#f92672">=</span> UsbIo<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">UsbAsyncInterruptTransfer</span> (
+</span></span><span style="display:flex;"><span>                UsbIo,
+</span></span><span style="display:flex;"><span>                EpDesc<span style="color:#f92672">-&gt;</span>Desc.EndpointAddress,
+</span></span><span style="display:flex;"><span>                TRUE,
+</span></span><span style="display:flex;"><span>                USB_HUB_POLL_INTERVAL,
+</span></span><span style="display:flex;"><span>                HubIf<span style="color:#f92672">-&gt;</span>NumOfPort <span style="color:#f92672">/</span> <span style="color:#ae81ff">8</span> <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>,
+</span></span><span style="display:flex;"><span>                UsbOnHubInterrupt,
+</span></span><span style="display:flex;"><span>                HubIf
+</span></span><span style="display:flex;"><span>                );
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">-</span>   gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">SignalEvent</span> (HubIf<span style="color:#f92672">-&gt;</span>HubNotify); <span style="color:#75715e">//触发USB枚举
+</span></span></span></code></pre></div><ul>
+<li>mUsbRootHubApi //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbHub.c</li>
+<li>UsbRootHubInit // 创建 UsbRootHubEnumeration 事件</li>
+<li>UsbRootHubEnumeration</li>
+<li>UsbEnumeratePort  //Phoenix\System\450\PhxUsbPkg\Usb\UsbBusDxe\UsbEnumer.c</li>
+<li>UsbEnumerateNewDev</li>
+<li>UsbSelectConfig</li>
+<li>UsbCreateInterface</li>
+</ul>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>  UsbNode.Header.SubType <span style="color:#f92672">=</span> MSG_USB_DP;
+</span></span><span style="display:flex;"><span>  Status <span style="color:#f92672">=</span> gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">InstallMultipleProtocolInterfaces</span> (
+</span></span><span style="display:flex;"><span>                  <span style="color:#f92672">&amp;</span>(<span style="color:#f92672">*</span>UsbIf)<span style="color:#f92672">-&gt;</span>Handle,
+</span></span><span style="display:flex;"><span>                  <span style="color:#f92672">&amp;</span>gEfiDevicePathProtocolGuid,
+</span></span><span style="display:flex;"><span>                  (<span style="color:#f92672">*</span>UsbIf)<span style="color:#f92672">-&gt;</span>DevicePath,
+</span></span><span style="display:flex;"><span>                  <span style="color:#f92672">&amp;</span>gEfiUsbIoProtocolGuid,
+</span></span><span style="display:flex;"><span>                  <span style="color:#f92672">&amp;</span>(<span style="color:#f92672">*</span>UsbIf)<span style="color:#f92672">-&gt;</span>UsbIo,
+</span></span><span style="display:flex;"><span>                  NULL);</span></span></code></pre></div><h3 id="musbioprotocol">mUsbIoProtocol<a class="anchor" href="#musbioprotocol">#</a></h3>
+<blockquote class='book-hint '>
+<p>UsbIo协议</p>
+</blockquote><h3 id="usbioasyncinterrupttransfer">UsbIoAsyncInterruptTransfer<a class="anchor" href="#usbioasyncinterrupttransfer">#</a></h3>
+<blockquote class='book-hint '>
+<p>USB异步中断传输</p>
+</blockquote><h1 id="usb-host-driver">USB host driver<a class="anchor" href="#usb-host-driver">#</a></h1>
+<blockquote class='book-hint '>
+<p>xhci控制器接口
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/xhci%e6%8e%a7%e5%88%b6%e5%99%a8%e6%8e%a5%e5%8f%a3.png">
+    <img src="/images/xhci%e6%8e%a7%e5%88%b6%e5%99%a8%e6%8e%a5%e5%8f%a3.png" 
+         alt="xhci控制器接口" 
+         />
+  </a>
+</div>
+</p>
+</blockquote><h2 id="edk2-mastermdemodulepkgbuspcixhcidxexhcic">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\Xhci.c<a class="anchor" href="#edk2-mastermdemodulepkgbuspcixhcidxexhcic">#</a></h2>
+<blockquote class='book-hint '>
+<p>xhci控制器驱动</p>
+</blockquote><ul>
+<li>将usb主机控制器抽象为ihandle加入到ihandle链表</li>
+<li>给usb主机控制器安装 gEfiUsb2HcProtocolGuid 协议</li>
+</ul>
+<h3 id="gxhciusb2hctemplate">gXhciUsb2HcTemplate<a class="anchor" href="#gxhciusb2hctemplate">#</a></h3>
+<p>USB2主机控制器协议</p>
+<h3 id="xhcasyncinterrupttransfer">XhcAsyncInterruptTransfer<a class="anchor" href="#xhcasyncinterrupttransfer">#</a></h3>
+<p>xhc 异步中断传输</p>
+<blockquote class='book-hint '>
+<p>这个函数的主要功能是提交或取消异步中断传输请求。它首先进行参数验证，然后根据是否为新传输来决定是插入新的传输请求还是删除现有的传输请求。最后，它响铃门铃以启动传输，并在操作完成后恢复任务优先级。</p>
+</blockquote><h2 id="edk2-mastermdemodulepkgbuspcixhcidxexhcischedc">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\XhciSched.c<a class="anchor" href="#edk2-mastermdemodulepkgbuspcixhcidxexhcischedc">#</a></h2>
+<blockquote class='book-hint '>
+<p>xhci调度器</p>
+</blockquote><h2 id="xhcmonitorasyncrequests">XhcMonitorAsyncRequests<a class="anchor" href="#xhcmonitorasyncrequests">#</a></h2>
+<p>中断传输定期检测程序</p>
+<h3 id="xhciinsertasyncinttransfer">XhciInsertAsyncIntTransfer<a class="anchor" href="#xhciinsertasyncinttransfer">#</a></h3>
+<p>xhc 插入异步中断传输</p>
+<h3 id="ringinttransferdoorbell">RingIntTransferDoorBell<a class="anchor" href="#ringinttransferdoorbell">#</a></h3>
+<p>通过URB通知XHCI有事务需要执行，按门铃</p>
+<h3 id="xhcwritedoorbelreg">XhcWriteDoorBelReg<a class="anchor" href="#xhcwritedoorbelreg">#</a></h3>
+<blockquote class='book-hint '>
+<p>这个函数的主要功能是向XHCI主机控制器的门铃寄存器写入数据，以通知主机控制器执行某些操作。它首先进行断言检查以确保门铃寄存器的基地址已正确初始化，然后通过PCI I/O协议向指定的门铃寄存器写入数据。如果写入操作失败，则输出错误信息。</p>
+</blockquote><p>中断传输定期检查处理程序。</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/usb/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>USB</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E4%B8%AD%E6%96%AD/" class="flex align-center">
+      <span>中断</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#usb协议栈总览">USB协议栈总览</a></li>
+    <li><a href="#usb-device-driver">USB device driver</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgbususbusbkbdxeefikeyc">edk2-master\MdeModulePkg\Bus\Usb\UsbKbDxe\EfiKey.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb-bus-driver">USB bus driver</a>
+      <ul>
+        <li><a href="#edk2mdemodulepkgbususbusbbusdxeusbhubc">Edk2\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbHub.c</a></li>
+        <li><a href="#edk2-mastermdemodulepkgbususbusbbusdxeusbbusc">edk2-master\MdeModulePkg\Bus\Usb\UsbBusDxe\UsbBus.c</a></li>
+      </ul>
+    </li>
+    <li><a href="#usb-host-driver">USB host driver</a>
+      <ul>
+        <li><a href="#edk2-mastermdemodulepkgbuspcixhcidxexhcic">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\Xhci.c</a></li>
+        <li><a href="#edk2-mastermdemodulepkgbuspcixhcidxexhcischedc">edk2-master\MdeModulePkg\Bus\Pci\XhciDxe\XhciSched.c</a></li>
+        <li><a href="#xhcmonitorasyncrequests">XhcMonitorAsyncRequests</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

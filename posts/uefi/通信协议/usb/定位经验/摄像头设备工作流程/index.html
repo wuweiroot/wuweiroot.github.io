@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="以下是一个 USB摄像头设备 的工作流程示例，结合USB协议的主从控制机制，详细说明主机如何检测设备状态及传输数据：
+场景设定# 设备类型：USB摄像头（采用批量传输或等时传输）。 传输模式：等时传输（实时视频流，无握手包，允许少量数据丢失）。 USB速度：全速（1ms帧间隔）或高速（125μs微帧）。 通信流程详解# 1. 设备枚举阶段（主机初始化摄像头）# 主机动作：发送控制传输请求（SETUP令牌包）获取摄像头描述符（如分辨率、支持的传输类型）。 摄像头响应：返回描述符数据包（如DATA0）。 结果：主机确认摄像头为等时传输设备，并为其分配带宽和端点地址。 2. 视频传输阶段（主机周期性获取视频数据）# 步骤1：主机发送SOF包（帧起始包）# 目的：同步所有设备，标志新帧/微帧开始。 总线状态：主机驱动总线发送SOF包后，总线进入空闲（J状态）。 步骤2：主机调度等时传输IN令牌包# 主机动作：在规划的时间槽（如帧的固定位置）发送 IN令牌包（包含摄像头端点地址）。 总线状态：主机驱动令牌包后释放总线，等待摄像头响应。 步骤3：摄像头响应数据包# 有数据时： 摄像头驱动总线，发送视频数据包（如DATA0）。 主机接收数据并传递给上层应用（如视频播放器）。 无数据时（异常情况）： 等时传输 无握手包（如NAK），若摄像头未准备好数据，主机直接忽略本帧数据（可能产生视频卡顿）。 步骤4：总线恢复空闲# 主机继续处理本帧内其他设备事务，或等待下一帧开始。 3. 关键机制解析# （1）主机如何知道摄像头无数据？# 等时传输特性：无需握手包，主机 默认每帧发送IN令牌包，摄像头必须持续返回数据（即使为无效填充数据）。 若摄像头硬件故障（如断开），主机会检测到总线超时或CRC错误，触发设备重置。 带宽预留：主机在枚举时为摄像头分配固定带宽，无论是否有有效数据，均占用该带宽。 （2）摄像头为何不能主动通知主机？# 协议限制：摄像头无法主动拉高D&#43;/D-电平请求传输，必须等待主机的IN令牌包。 实时性保障：等时传输依赖主机严格周期轮询，避免总线冲突。 4. 用户案例：摄像头断连检测# 正常传输：主机每帧发送IN令牌包 → 摄像头返回数据包 → 视频流持续。 摄像头断开： 主机发送IN令牌包后，总线无响应（保持空闲）。 主机检测超时（如连续3帧无响应），触发 设备移除事件。 操作系统提示“摄像头未连接”。 5. 对比批量传输（Bulk Transfer）差异# 若摄像头使用批量传输（如拍摄静态照片）：
+主机动作：在总线空闲时动态发送IN令牌包。 摄像头响应： 有数据：返回照片数据包（主机回复ACK）。 无数据：返回NAK握手包（主机稍后重试）。 优势：可靠传输（ACK/NAK重试机制），但实时性差。 总结：USB摄像头的工作本质# 完全受控于主机：所有数据传输由主机令牌包触发，摄像头仅在收到IN令牌后响应。 无“主动通知”能力：即使摄像头缓冲区满或数据就绪，仍需等待主机轮询。 实时性依赖主机调度：等时传输通过预留带宽保障流畅性，批量传输通过动态重试保障可靠性。 ">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/%E5%AE%9A%E4%BD%8D%E7%BB%8F%E9%AA%8C/%E6%91%84%E5%83%8F%E5%A4%B4%E8%AE%BE%E5%A4%87%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="以下是一个 USB摄像头设备 的工作流程示例，结合USB协议的主从控制机制，详细说明主机如何检测设备状态及传输数据：
+场景设定# 设备类型：USB摄像头（采用批量传输或等时传输）。 传输模式：等时传输（实时视频流，无握手包，允许少量数据丢失）。 USB速度：全速（1ms帧间隔）或高速（125μs微帧）。 通信流程详解# 1. 设备枚举阶段（主机初始化摄像头）# 主机动作：发送控制传输请求（SETUP令牌包）获取摄像头描述符（如分辨率、支持的传输类型）。 摄像头响应：返回描述符数据包（如DATA0）。 结果：主机确认摄像头为等时传输设备，并为其分配带宽和端点地址。 2. 视频传输阶段（主机周期性获取视频数据）# 步骤1：主机发送SOF包（帧起始包）# 目的：同步所有设备，标志新帧/微帧开始。 总线状态：主机驱动总线发送SOF包后，总线进入空闲（J状态）。 步骤2：主机调度等时传输IN令牌包# 主机动作：在规划的时间槽（如帧的固定位置）发送 IN令牌包（包含摄像头端点地址）。 总线状态：主机驱动令牌包后释放总线，等待摄像头响应。 步骤3：摄像头响应数据包# 有数据时： 摄像头驱动总线，发送视频数据包（如DATA0）。 主机接收数据并传递给上层应用（如视频播放器）。 无数据时（异常情况）： 等时传输 无握手包（如NAK），若摄像头未准备好数据，主机直接忽略本帧数据（可能产生视频卡顿）。 步骤4：总线恢复空闲# 主机继续处理本帧内其他设备事务，或等待下一帧开始。 3. 关键机制解析# （1）主机如何知道摄像头无数据？# 等时传输特性：无需握手包，主机 默认每帧发送IN令牌包，摄像头必须持续返回数据（即使为无效填充数据）。 若摄像头硬件故障（如断开），主机会检测到总线超时或CRC错误，触发设备重置。 带宽预留：主机在枚举时为摄像头分配固定带宽，无论是否有有效数据，均占用该带宽。 （2）摄像头为何不能主动通知主机？# 协议限制：摄像头无法主动拉高D&#43;/D-电平请求传输，必须等待主机的IN令牌包。 实时性保障：等时传输依赖主机严格周期轮询，避免总线冲突。 4. 用户案例：摄像头断连检测# 正常传输：主机每帧发送IN令牌包 → 摄像头返回数据包 → 视频流持续。 摄像头断开： 主机发送IN令牌包后，总线无响应（保持空闲）。 主机检测超时（如连续3帧无响应），触发 设备移除事件。 操作系统提示“摄像头未连接”。 5. 对比批量传输（Bulk Transfer）差异# 若摄像头使用批量传输（如拍摄静态照片）：
+主机动作：在总线空闲时动态发送IN令牌包。 摄像头响应： 有数据：返回照片数据包（主机回复ACK）。 无数据：返回NAK握手包（主机稍后重试）。 优势：可靠传输（ACK/NAK重试机制），但实时性差。 总结：USB摄像头的工作本质# 完全受控于主机：所有数据传输由主机令牌包触发，摄像头仅在收到IN令牌后响应。 无“主动通知”能力：即使摄像头缓冲区满或数据就绪，仍需等待主机轮询。 实时性依赖主机调度：等时传输通过预留带宽保障流畅性，批量传输通过动态重试保障可靠性。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="以下是一个 USB摄像头设备 的工作流程示例，结合USB协议的主从控制机制，详细说明主机如何检测设备状态及传输数据：
+场景设定# 设备类型：USB摄像头（采用批量传输或等时传输）。 传输模式：等时传输（实时视频流，无握手包，允许少量数据丢失）。 USB速度：全速（1ms帧间隔）或高速（125μs微帧）。 通信流程详解# 1. 设备枚举阶段（主机初始化摄像头）# 主机动作：发送控制传输请求（SETUP令牌包）获取摄像头描述符（如分辨率、支持的传输类型）。 摄像头响应：返回描述符数据包（如DATA0）。 结果：主机确认摄像头为等时传输设备，并为其分配带宽和端点地址。 2. 视频传输阶段（主机周期性获取视频数据）# 步骤1：主机发送SOF包（帧起始包）# 目的：同步所有设备，标志新帧/微帧开始。 总线状态：主机驱动总线发送SOF包后，总线进入空闲（J状态）。 步骤2：主机调度等时传输IN令牌包# 主机动作：在规划的时间槽（如帧的固定位置）发送 IN令牌包（包含摄像头端点地址）。 总线状态：主机驱动令牌包后释放总线，等待摄像头响应。 步骤3：摄像头响应数据包# 有数据时： 摄像头驱动总线，发送视频数据包（如DATA0）。 主机接收数据并传递给上层应用（如视频播放器）。 无数据时（异常情况）： 等时传输 无握手包（如NAK），若摄像头未准备好数据，主机直接忽略本帧数据（可能产生视频卡顿）。 步骤4：总线恢复空闲# 主机继续处理本帧内其他设备事务，或等待下一帧开始。 3. 关键机制解析# （1）主机如何知道摄像头无数据？# 等时传输特性：无需握手包，主机 默认每帧发送IN令牌包，摄像头必须持续返回数据（即使为无效填充数据）。 若摄像头硬件故障（如断开），主机会检测到总线超时或CRC错误，触发设备重置。 带宽预留：主机在枚举时为摄像头分配固定带宽，无论是否有有效数据，均占用该带宽。 （2）摄像头为何不能主动通知主机？# 协议限制：摄像头无法主动拉高D&#43;/D-电平请求传输，必须等待主机的IN令牌包。 实时性保障：等时传输依赖主机严格周期轮询，避免总线冲突。 4. 用户案例：摄像头断连检测# 正常传输：主机每帧发送IN令牌包 → 摄像头返回数据包 → 视频流持续。 摄像头断开： 主机发送IN令牌包后，总线无响应（保持空闲）。 主机检测超时（如连续3帧无响应），触发 设备移除事件。 操作系统提示“摄像头未连接”。 5. 对比批量传输（Bulk Transfer）差异# 若摄像头使用批量传输（如拍摄静态照片）：
+主机动作：在总线空闲时动态发送IN令牌包。 摄像头响应： 有数据：返回照片数据包（主机回复ACK）。 无数据：返回NAK握手包（主机稍后重试）。 优势：可靠传输（ACK/NAK重试机制），但实时性差。 总结：USB摄像头的工作本质# 完全受控于主机：所有数据传输由主机令牌包触发，摄像头仅在收到IN令牌后响应。 无“主动通知”能力：即使摄像头缓冲区满或数据就绪，仍需等待主机轮询。 实时性依赖主机调度：等时传输通过预留带宽保障流畅性，批量传输通过动态重试保障可靠性。">
+  <meta itemprop="wordCount" content="66">
+
+<title>摄像头设备工作流程 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/%E5%AE%9A%E4%BD%8D%E7%BB%8F%E9%AA%8C/%E6%91%84%E5%83%8F%E5%A4%B4%E8%AE%BE%E5%A4%87%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.3826bca94694f01e98becf124c7b645b76904cc557208607bd0a8125ace7bc9f.js" integrity="sha256-OCa8qUaU8B6Yvs8STHtkW3aQTMVXIIYHvQqBJaznvJ8=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>摄像头设备工作流程</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>摄像头设备工作流程</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>以下是一个 <strong>USB摄像头设备</strong> 的工作流程示例，结合USB协议的主从控制机制，详细说明主机如何检测设备状态及传输数据：</p>
+<hr>
+<h3 id="场景设定"><strong>场景设定</strong><a class="anchor" href="#%e5%9c%ba%e6%99%af%e8%ae%be%e5%ae%9a">#</a></h3>
+<ul>
+<li><strong>设备类型</strong>：USB摄像头（采用批量传输或等时传输）。</li>
+<li><strong>传输模式</strong>：等时传输（实时视频流，无握手包，允许少量数据丢失）。</li>
+<li><strong>USB速度</strong>：全速（1ms帧间隔）或高速（125μs微帧）。</li>
+</ul>
+<hr>
+<h3 id="通信流程详解"><strong>通信流程详解</strong><a class="anchor" href="#%e9%80%9a%e4%bf%a1%e6%b5%81%e7%a8%8b%e8%af%a6%e8%a7%a3">#</a></h3>
+<h4 id="1-设备枚举阶段主机初始化摄像头"><strong>1. 设备枚举阶段</strong>（主机初始化摄像头）<a class="anchor" href="#1-%e8%ae%be%e5%a4%87%e6%9e%9a%e4%b8%be%e9%98%b6%e6%ae%b5%e4%b8%bb%e6%9c%ba%e5%88%9d%e5%a7%8b%e5%8c%96%e6%91%84%e5%83%8f%e5%a4%b4">#</a></h4>
+<ul>
+<li><strong>主机动作</strong>：发送控制传输请求（SETUP令牌包）获取摄像头描述符（如分辨率、支持的传输类型）。</li>
+<li><strong>摄像头响应</strong>：返回描述符数据包（如<code>DATA0</code>）。</li>
+<li><strong>结果</strong>：主机确认摄像头为等时传输设备，并为其分配带宽和端点地址。</li>
+</ul>
+<hr>
+<h4 id="2-视频传输阶段主机周期性获取视频数据"><strong>2. 视频传输阶段</strong>（主机周期性获取视频数据）<a class="anchor" href="#2-%e8%a7%86%e9%a2%91%e4%bc%a0%e8%be%93%e9%98%b6%e6%ae%b5%e4%b8%bb%e6%9c%ba%e5%91%a8%e6%9c%9f%e6%80%a7%e8%8e%b7%e5%8f%96%e8%a7%86%e9%a2%91%e6%95%b0%e6%8d%ae">#</a></h4>
+<h5 id="步骤1主机发送sof包帧起始包"><strong>步骤1：主机发送SOF包（帧起始包）</strong><a class="anchor" href="#%e6%ad%a5%e9%aa%a41%e4%b8%bb%e6%9c%ba%e5%8f%91%e9%80%81sof%e5%8c%85%e5%b8%a7%e8%b5%b7%e5%a7%8b%e5%8c%85">#</a></h5>
+<ul>
+<li><strong>目的</strong>：同步所有设备，标志新帧/微帧开始。</li>
+<li><strong>总线状态</strong>：主机驱动总线发送SOF包后，总线进入空闲（J状态）。</li>
+</ul>
+<h5 id="步骤2主机调度等时传输in令牌包"><strong>步骤2：主机调度等时传输IN令牌包</strong><a class="anchor" href="#%e6%ad%a5%e9%aa%a42%e4%b8%bb%e6%9c%ba%e8%b0%83%e5%ba%a6%e7%ad%89%e6%97%b6%e4%bc%a0%e8%be%93in%e4%bb%a4%e7%89%8c%e5%8c%85">#</a></h5>
+<ul>
+<li><strong>主机动作</strong>：在规划的时间槽（如帧的固定位置）发送 <strong>IN令牌包</strong>（包含摄像头端点地址）。</li>
+<li><strong>总线状态</strong>：主机驱动令牌包后释放总线，等待摄像头响应。</li>
+</ul>
+<h5 id="步骤3摄像头响应数据包"><strong>步骤3：摄像头响应数据包</strong><a class="anchor" href="#%e6%ad%a5%e9%aa%a43%e6%91%84%e5%83%8f%e5%a4%b4%e5%93%8d%e5%ba%94%e6%95%b0%e6%8d%ae%e5%8c%85">#</a></h5>
+<ul>
+<li><strong>有数据时</strong>：
+<ul>
+<li>摄像头驱动总线，发送视频数据包（如<code>DATA0</code>）。</li>
+<li>主机接收数据并传递给上层应用（如视频播放器）。</li>
+</ul>
+</li>
+<li><strong>无数据时</strong>（异常情况）：
+<ul>
+<li>等时传输 <strong>无握手包</strong>（如NAK），若摄像头未准备好数据，主机直接忽略本帧数据（可能产生视频卡顿）。</li>
+</ul>
+</li>
+</ul>
+<h5 id="步骤4总线恢复空闲"><strong>步骤4：总线恢复空闲</strong><a class="anchor" href="#%e6%ad%a5%e9%aa%a44%e6%80%bb%e7%ba%bf%e6%81%a2%e5%a4%8d%e7%a9%ba%e9%97%b2">#</a></h5>
+<ul>
+<li>主机继续处理本帧内其他设备事务，或等待下一帧开始。</li>
+</ul>
+<hr>
+<h3 id="3-关键机制解析"><strong>3. 关键机制解析</strong><a class="anchor" href="#3-%e5%85%b3%e9%94%ae%e6%9c%ba%e5%88%b6%e8%a7%a3%e6%9e%90">#</a></h3>
+<h4 id="1主机如何知道摄像头无数据"><strong>（1）主机如何知道摄像头无数据？</strong><a class="anchor" href="#1%e4%b8%bb%e6%9c%ba%e5%a6%82%e4%bd%95%e7%9f%a5%e9%81%93%e6%91%84%e5%83%8f%e5%a4%b4%e6%97%a0%e6%95%b0%e6%8d%ae">#</a></h4>
+<ul>
+<li><strong>等时传输特性</strong>：无需握手包，主机 <strong>默认每帧发送IN令牌包</strong>，摄像头必须持续返回数据（即使为无效填充数据）。
+<ul>
+<li>若摄像头硬件故障（如断开），主机会检测到总线超时或CRC错误，触发设备重置。</li>
+</ul>
+</li>
+<li><strong>带宽预留</strong>：主机在枚举时为摄像头分配固定带宽，无论是否有有效数据，均占用该带宽。</li>
+</ul>
+<h4 id="2摄像头为何不能主动通知主机"><strong>（2）摄像头为何不能主动通知主机？</strong><a class="anchor" href="#2%e6%91%84%e5%83%8f%e5%a4%b4%e4%b8%ba%e4%bd%95%e4%b8%8d%e8%83%bd%e4%b8%bb%e5%8a%a8%e9%80%9a%e7%9f%a5%e4%b8%bb%e6%9c%ba">#</a></h4>
+<ul>
+<li><strong>协议限制</strong>：摄像头无法主动拉高D+/D-电平请求传输，必须等待主机的IN令牌包。</li>
+<li><strong>实时性保障</strong>：等时传输依赖主机严格周期轮询，避免总线冲突。</li>
+</ul>
+<hr>
+<h3 id="4-用户案例摄像头断连检测"><strong>4. 用户案例：摄像头断连检测</strong><a class="anchor" href="#4-%e7%94%a8%e6%88%b7%e6%a1%88%e4%be%8b%e6%91%84%e5%83%8f%e5%a4%b4%e6%96%ad%e8%bf%9e%e6%a3%80%e6%b5%8b">#</a></h3>
+<ol>
+<li><strong>正常传输</strong>：主机每帧发送IN令牌包 → 摄像头返回数据包 → 视频流持续。</li>
+<li><strong>摄像头断开</strong>：
+<ul>
+<li>主机发送IN令牌包后，总线无响应（保持空闲）。</li>
+<li>主机检测超时（如连续3帧无响应），触发 <strong>设备移除事件</strong>。</li>
+<li>操作系统提示“摄像头未连接”。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="5-对比批量传输bulk-transfer差异"><strong>5. 对比批量传输（Bulk Transfer）差异</strong><a class="anchor" href="#5-%e5%af%b9%e6%af%94%e6%89%b9%e9%87%8f%e4%bc%a0%e8%be%93bulk-transfer%e5%b7%ae%e5%bc%82">#</a></h3>
+<p>若摄像头使用批量传输（如拍摄静态照片）：</p>
+<ul>
+<li><strong>主机动作</strong>：在总线空闲时动态发送IN令牌包。</li>
+<li><strong>摄像头响应</strong>：
+<ul>
+<li>有数据：返回照片数据包（主机回复ACK）。</li>
+<li>无数据：返回NAK握手包（主机稍后重试）。</li>
+</ul>
+</li>
+<li><strong>优势</strong>：可靠传输（ACK/NAK重试机制），但实时性差。</li>
+</ul>
+<hr>
+<h3 id="总结usb摄像头的工作本质"><strong>总结：USB摄像头的工作本质</strong><a class="anchor" href="#%e6%80%bb%e7%bb%93usb%e6%91%84%e5%83%8f%e5%a4%b4%e7%9a%84%e5%b7%a5%e4%bd%9c%e6%9c%ac%e8%b4%a8">#</a></h3>
+<ul>
+<li><strong>完全受控于主机</strong>：所有数据传输由主机令牌包触发，摄像头仅在收到IN令牌后响应。</li>
+<li><strong>无“主动通知”能力</strong>：即使摄像头缓冲区满或数据就绪，仍需等待主机轮询。</li>
+<li><strong>实时性依赖主机调度</strong>：等时传输通过预留带宽保障流畅性，批量传输通过动态重试保障可靠性。</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/usb/%E5%AE%9A%E4%BD%8D%E7%BB%8F%E9%AA%8C/anli/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>Anli</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
