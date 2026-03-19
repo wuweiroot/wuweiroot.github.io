@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="git常用命令# 初始化仓库# cd public git init ##初始化仓库 git remote add origin https://github.com/caecarxu/caecarxu.github.io.git ##链接远程仓库 git add . git commit -m “first commit” git push -u origin master 提交代码# cd public git add . git status git commit -m “add blog post” git push 用SSH格式的远程地址# 先查看当前远程地址（确认是 HTTPS 格式） git remote -v 删除旧的 HTTPS 远程地址 git remote rm origin 添加 SSH 格式的远程地址（替换成你的仓库） git remote add origin git@github.com:wuweiroot/wuweiroot.github.io.git 再次推送 git push -u origin master 和远程仓库建立链接# git push –set-upstream origin master
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/git/git%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="git常用命令">
+  <meta property="og:description" content="git常用命令# 初始化仓库# cd public git init ##初始化仓库 git remote add origin https://github.com/caecarxu/caecarxu.github.io.git ##链接远程仓库 git add . git commit -m “first commit” git push -u origin master 提交代码# cd public git add . git status git commit -m “add blog post” git push 用SSH格式的远程地址# 先查看当前远程地址（确认是 HTTPS 格式） git remote -v 删除旧的 HTTPS 远程地址 git remote rm origin 添加 SSH 格式的远程地址（替换成你的仓库） git remote add origin git@github.com:wuweiroot/wuweiroot.github.io.git 再次推送 git push -u origin master 和远程仓库建立链接# git push –set-upstream origin master">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="git常用命令">
+  <meta itemprop="description" content="git常用命令# 初始化仓库# cd public git init ##初始化仓库 git remote add origin https://github.com/caecarxu/caecarxu.github.io.git ##链接远程仓库 git add . git commit -m “first commit” git push -u origin master 提交代码# cd public git add . git status git commit -m “add blog post” git push 用SSH格式的远程地址# 先查看当前远程地址（确认是 HTTPS 格式） git remote -v 删除旧的 HTTPS 远程地址 git remote rm origin 添加 SSH 格式的远程地址（替换成你的仓库） git remote add origin git@github.com:wuweiroot/wuweiroot.github.io.git 再次推送 git push -u origin master 和远程仓库建立链接# git push –set-upstream origin master">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="233">
+
+<title>git常用命令 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/git/git%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.37854b9c46fd15f714199a1d1b008faf373ee87d60608734b6a2c2e8716f8f31.js" integrity="sha256-N4VLnEb9FfcUGZodGwCPrzc&#43;6H1gYIc0tqLC6HFvjzE=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>git常用命令</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#git常用命令">git常用命令</a>
+      <ul>
+        <li><a href="#初始化仓库">初始化仓库</a></li>
+        <li><a href="#提交代码">提交代码</a></li>
+        <li><a href="#用ssh格式的远程地址">用SSH格式的远程地址</a></li>
+        <li><a href="#和远程仓库建立链接">和远程仓库建立链接</a></li>
+      </ul>
+    </li>
+    <li><a href="#简写形式效果完全一样更常用">简写形式（效果完全一样，更常用）：</a></li>
+    <li><a href="#git-push--u-origin-master">git push -u origin master</a>
+      <ul>
+        <li><a href="#强制推送本地-master-分支到远程建立追踪关系">强制推送本地 master 分支到远程，建立追踪关系</a></li>
+        <li><a href="#git-cherry-pick">git cherry-pick</a></li>
+        <li><a href="#git-rebase">git rebase</a></li>
+        <li><a href="#git-stash">git stash</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>git常用命令</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="git常用命令">git常用命令<a class="anchor" href="#git%e5%b8%b8%e7%94%a8%e5%91%bd%e4%bb%a4">#</a></h1>
+<h2 id="初始化仓库">初始化仓库<a class="anchor" href="#%e5%88%9d%e5%a7%8b%e5%8c%96%e4%bb%93%e5%ba%93">#</a></h2>
+<ul>
+<li>cd public</li>
+<li>git init    ##初始化仓库</li>
+<li>git remote add origin <a href="https://github.com/caecarxu/caecarxu.github.io.git">https://github.com/caecarxu/caecarxu.github.io.git</a>    ##链接远程仓库</li>
+<li>git add .</li>
+<li>git commit -m &ldquo;first commit&rdquo;</li>
+<li>git push -u origin master</li>
+</ul>
+<h2 id="提交代码">提交代码<a class="anchor" href="#%e6%8f%90%e4%ba%a4%e4%bb%a3%e7%a0%81">#</a></h2>
+<ul>
+<li>cd public</li>
+<li>git add .</li>
+<li>git status</li>
+<li>git commit -m &ldquo;add blog post&rdquo;</li>
+<li>git push</li>
+</ul>
+<h2 id="用ssh格式的远程地址">用SSH格式的远程地址<a class="anchor" href="#%e7%94%a8ssh%e6%a0%bc%e5%bc%8f%e7%9a%84%e8%bf%9c%e7%a8%8b%e5%9c%b0%e5%9d%80">#</a></h2>
+<ul>
+<li>先查看当前远程地址（确认是 HTTPS 格式）
+git remote -v</li>
+<li>删除旧的 HTTPS 远程地址
+git remote rm origin</li>
+<li>添加 SSH 格式的远程地址（替换成你的仓库）
+git remote add origin <a href="mailto:git@github.com">git@github.com</a>:wuweiroot/wuweiroot.github.io.git</li>
+<li>再次推送
+git push -u origin master</li>
+</ul>
+<h2 id="和远程仓库建立链接">和远程仓库建立链接<a class="anchor" href="#%e5%92%8c%e8%bf%9c%e7%a8%8b%e4%bb%93%e5%ba%93%e5%bb%ba%e7%ab%8b%e9%93%be%e6%8e%a5">#</a></h2>
+<p>git push &ndash;set-upstream origin master</p>
+<h1 id="简写形式效果完全一样更常用">简写形式（效果完全一样，更常用）：<a class="anchor" href="#%e7%ae%80%e5%86%99%e5%bd%a2%e5%bc%8f%e6%95%88%e6%9e%9c%e5%ae%8c%e5%85%a8%e4%b8%80%e6%a0%b7%e6%9b%b4%e5%b8%b8%e7%94%a8">#</a></h1>
+<h1 id="git-push--u-origin-master">git push -u origin master<a class="anchor" href="#git-push--u-origin-master">#</a></h1>
+<h2 id="强制推送本地-master-分支到远程建立追踪关系">强制推送本地 master 分支到远程，建立追踪关系<a class="anchor" href="#%e5%bc%ba%e5%88%b6%e6%8e%a8%e9%80%81%e6%9c%ac%e5%9c%b0-master-%e5%88%86%e6%94%af%e5%88%b0%e8%bf%9c%e7%a8%8b%e5%bb%ba%e7%ab%8b%e8%bf%bd%e8%b8%aa%e5%85%b3%e7%b3%bb">#</a></h2>
+<p>git push -uf origin master</p>
+<h2 id="git-cherry-pick">git cherry-pick<a class="anchor" href="#git-cherry-pick">#</a></h2>
+<blockquote class='book-hint '>
+<p>一个分支的commit到另外一个分支</p>
+</blockquote><ol>
+<li>先查看源分支（比如 dev）的提交记录，找到要复制的 commit ID（前 7 位即可）
+git log dev &ndash;oneline  # 输出示例：a1b2c3d fix: 修复登录bug | 987654e feat: 新增支付功能</li>
+<li>切换到目标分支（比如 master）
+git checkout master</li>
+<li>挑拣指定提交到当前分支（替换成你的 commit ID）
+git cherry-pick a1b2c3d</li>
+<li>若挑拣有冲突：解决冲突 → 标记 → 继续挑拣
+git add .
+git cherry-pick &ndash;continue  # 完成挑拣</li>
+</ol>
+<ul>
+<li>（若想放弃挑拣：git cherry-pick &ndash;abort）</li>
+</ul>
+<ol start="5">
+<li>推送远程（可选）
+git push origin master</li>
+</ol>
+<h2 id="git-rebase">git rebase<a class="anchor" href="#git-rebase">#</a></h2>
+<blockquote class='book-hint '>
+<p>更改分支代码拉取节点</p>
+</blockquote><ol>
+<li>
+<p>切到 master，拉取最新代码
+git checkout master
+git pull origin master</p>
+</li>
+<li>
+<p>切回 dev 分支
+git checkout dev</p>
+</li>
+<li>
+<p>执行 rebase，把 dev 基于 master 最新提交重排
+git rebase master</p>
+</li>
+<li>
+<p>假设出现冲突：
+① 打开冲突文件，删除 &laquo;&laquo;&laquo;&lt; HEAD 等标记，保留正确代码
+② 标记冲突已解决
+git add .
+③ 继续 rebase
+git rebase &ndash;continue</p>
+</li>
+<li>
+<p>rebase 完成后，推送 dev 分支（强制推送，仅个人分支！）
+git push -f origin dev</p>
+</li>
+<li>
+<p>此时 dev 已同步 master 最新代码，可合并到 master（无冲突）
+git checkout master
+git merge dev
+git push origin master</p>
+</li>
+</ol>
+<h2 id="git-stash">git stash<a class="anchor" href="#git-stash">#</a></h2>
+<blockquote class='book-hint '>
+<p>暂存本地代码</p>
+</blockquote><h3 id="暂存工作区所有未提交的修改已追踪文件的修改新增文件">暂存工作区所有未提交的修改（已追踪文件的修改+新增文件）<a class="anchor" href="#%e6%9a%82%e5%ad%98%e5%b7%a5%e4%bd%9c%e5%8c%ba%e6%89%80%e6%9c%89%e6%9c%aa%e6%8f%90%e4%ba%a4%e7%9a%84%e4%bf%ae%e6%94%b9%e5%b7%b2%e8%bf%bd%e8%b8%aa%e6%96%87%e4%bb%b6%e7%9a%84%e4%bf%ae%e6%94%b9%e6%96%b0%e5%a2%9e%e6%96%87%e4%bb%b6">#</a></h3>
+<p>git stash</p>
+<h3 id="推荐给暂存加备注方便后续识别多人协作多暂存时必备">推荐：给暂存加备注，方便后续识别（多人协作/多暂存时必备）<a class="anchor" href="#%e6%8e%a8%e8%8d%90%e7%bb%99%e6%9a%82%e5%ad%98%e5%8a%a0%e5%a4%87%e6%b3%a8%e6%96%b9%e4%be%bf%e5%90%8e%e7%bb%ad%e8%af%86%e5%88%ab%e5%a4%9a%e4%ba%ba%e5%8d%8f%e4%bd%9c%e5%a4%9a%e6%9a%82%e5%ad%98%e6%97%b6%e5%bf%85%e5%a4%87">#</a></h3>
+<p>git stash save &ldquo;修复订单页bug：改了一半的代码&rdquo;</p>
+<h3 id="恢复最新的暂存stash0到工作区">恢复最新的暂存（stash@{0}）到工作区<a class="anchor" href="#%e6%81%a2%e5%a4%8d%e6%9c%80%e6%96%b0%e7%9a%84%e6%9a%82%e5%ad%98stash0%e5%88%b0%e5%b7%a5%e4%bd%9c%e5%8c%ba">#</a></h3>
+<p>git stash apply</p>
+<h3 id="恢复指定的暂存比如-stash1">恢复指定的暂存（比如 stash@{1}）<a class="anchor" href="#%e6%81%a2%e5%a4%8d%e6%8c%87%e5%ae%9a%e7%9a%84%e6%9a%82%e5%ad%98%e6%af%94%e5%a6%82-stash1">#</a></h3>
+<p>git stash apply stash@{1}</p>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/git/git%E5%88%86%E5%8C%BA/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>git 分区</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#git常用命令">git常用命令</a>
+      <ul>
+        <li><a href="#初始化仓库">初始化仓库</a></li>
+        <li><a href="#提交代码">提交代码</a></li>
+        <li><a href="#用ssh格式的远程地址">用SSH格式的远程地址</a></li>
+        <li><a href="#和远程仓库建立链接">和远程仓库建立链接</a></li>
+      </ul>
+    </li>
+    <li><a href="#简写形式效果完全一样更常用">简写形式（效果完全一样，更常用）：</a></li>
+    <li><a href="#git-push--u-origin-master">git push -u origin master</a>
+      <ul>
+        <li><a href="#强制推送本地-master-分支到远程建立追踪关系">强制推送本地 master 分支到远程，建立追踪关系</a></li>
+        <li><a href="#git-cherry-pick">git cherry-pick</a></li>
+        <li><a href="#git-rebase">git rebase</a></li>
+        <li><a href="#git-stash">git stash</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
