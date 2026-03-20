@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="PCIe配置空间# 配置空间的结构是怎样的？有哪些重要的寄存器？# 配置空间分为两部分：前256字节的标准配置头和后面的扩展配置空间。
+前64字节是所有设备都有的公共部分，包括Vendor ID、Device ID、Command、Status、Class Code、BAR等寄存器。
+后面192字节根据设备类型不同而不同。Type 0是普通设备的配置头，Type 1是桥设备的配置头。
+PCI专用寄存器和新能力寄存器组# 第一个字节是能力寄存器ID，第二个字节是能力寄存器指针 能力寄存器ID，由PCI SIG统一分配，表寄存器组对应的特性 在 PCI 规范中明确要求：所有能力寄存器组的起始地址，必须是 4 字节（双字）对齐的。 早期 PCI 主机桥、设备的硬件逻辑只支持对齐的 32 位访问 能力寄存器指针的低两位必须为零。(双字对齐，四字节对齐) 读取slot# PCIe BAR空间# 什么是BAR（Base Address Register）？# BAR是配置空间里的一组寄存器，用来定义PCIe设备需要的内存或IO空间。
+BAR的作用：# PCIe设备通常需要一段地址空间来映射它的内部寄存器、缓冲区等资源。驱动通过访问这段地址空间来控制设备、读写数据。
+BAR就是告诉系统&#34;我需要多大的空间&#34;，然后系统在枚举时给它分配一个基地址，写到BAR寄存器里。之后驱动就可以通过这个基地址来访问设备了。
+BAR的位置：# 配置空间偏移0x10到0x24有6个BAR寄存器，编号BAR0到BAR5。每个BAR是32位的。
+Type 0设备（普通设备）有6个BAR，Type 1设备（桥设备）只有2个BAR。
+BAR的内容：# BAR寄存器的最低位表示地址空间类型：0表示内存空间，1表示IO空间。
+对于内存空间，第1-2位表示地址宽度：00表示32位地址，10表示64位地址。第3位表示是否Prefetchable。高位是基地址。
+对于IO空间，第1位保留，高位是基地址。
+如何计算BAR空间的大小？# 向 BAR 写入 0xFFFFFFFF 读回得到值 val 取低地址位部分（屏蔽掉属性位）： mask = val &amp; 0xFFFFFFF0 计算大小：size = ~mask &#43; 1 64位BAR：# 如果设备需要64位地址空间，会用两个连续的BAR。比如BAR0和BAR1组成一个64位BAR，BAR0存低32位地址，BAR1存高32位地址。这样实际只有5个可用的BAR空间（BAR0&#43;1、BAR2&#43;3、BAR4&#43;5，或者BAR0、BAR1、BAR2&#43;3、BAR4&#43;5等组合）。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/pcie%E9%97%AE%E7%AD%94/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="pcie 问答">
+  <meta property="og:description" content="PCIe配置空间# 配置空间的结构是怎样的？有哪些重要的寄存器？# 配置空间分为两部分：前256字节的标准配置头和后面的扩展配置空间。
+前64字节是所有设备都有的公共部分，包括Vendor ID、Device ID、Command、Status、Class Code、BAR等寄存器。
+后面192字节根据设备类型不同而不同。Type 0是普通设备的配置头，Type 1是桥设备的配置头。
+PCI专用寄存器和新能力寄存器组# 第一个字节是能力寄存器ID，第二个字节是能力寄存器指针 能力寄存器ID，由PCI SIG统一分配，表寄存器组对应的特性 在 PCI 规范中明确要求：所有能力寄存器组的起始地址，必须是 4 字节（双字）对齐的。 早期 PCI 主机桥、设备的硬件逻辑只支持对齐的 32 位访问 能力寄存器指针的低两位必须为零。(双字对齐，四字节对齐) 读取slot# PCIe BAR空间# 什么是BAR（Base Address Register）？# BAR是配置空间里的一组寄存器，用来定义PCIe设备需要的内存或IO空间。
+BAR的作用：# PCIe设备通常需要一段地址空间来映射它的内部寄存器、缓冲区等资源。驱动通过访问这段地址空间来控制设备、读写数据。
+BAR就是告诉系统&#34;我需要多大的空间&#34;，然后系统在枚举时给它分配一个基地址，写到BAR寄存器里。之后驱动就可以通过这个基地址来访问设备了。
+BAR的位置：# 配置空间偏移0x10到0x24有6个BAR寄存器，编号BAR0到BAR5。每个BAR是32位的。
+Type 0设备（普通设备）有6个BAR，Type 1设备（桥设备）只有2个BAR。
+BAR的内容：# BAR寄存器的最低位表示地址空间类型：0表示内存空间，1表示IO空间。
+对于内存空间，第1-2位表示地址宽度：00表示32位地址，10表示64位地址。第3位表示是否Prefetchable。高位是基地址。
+对于IO空间，第1位保留，高位是基地址。
+如何计算BAR空间的大小？# 向 BAR 写入 0xFFFFFFFF 读回得到值 val 取低地址位部分（屏蔽掉属性位）： mask = val &amp; 0xFFFFFFF0 计算大小：size = ~mask &#43; 1 64位BAR：# 如果设备需要64位地址空间，会用两个连续的BAR。比如BAR0和BAR1组成一个64位BAR，BAR0存低32位地址，BAR1存高32位地址。这样实际只有5个可用的BAR空间（BAR0&#43;1、BAR2&#43;3、BAR4&#43;5，或者BAR0、BAR1、BAR2&#43;3、BAR4&#43;5等组合）。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="pcie 问答">
+  <meta itemprop="description" content="PCIe配置空间# 配置空间的结构是怎样的？有哪些重要的寄存器？# 配置空间分为两部分：前256字节的标准配置头和后面的扩展配置空间。
+前64字节是所有设备都有的公共部分，包括Vendor ID、Device ID、Command、Status、Class Code、BAR等寄存器。
+后面192字节根据设备类型不同而不同。Type 0是普通设备的配置头，Type 1是桥设备的配置头。
+PCI专用寄存器和新能力寄存器组# 第一个字节是能力寄存器ID，第二个字节是能力寄存器指针 能力寄存器ID，由PCI SIG统一分配，表寄存器组对应的特性 在 PCI 规范中明确要求：所有能力寄存器组的起始地址，必须是 4 字节（双字）对齐的。 早期 PCI 主机桥、设备的硬件逻辑只支持对齐的 32 位访问 能力寄存器指针的低两位必须为零。(双字对齐，四字节对齐) 读取slot# PCIe BAR空间# 什么是BAR（Base Address Register）？# BAR是配置空间里的一组寄存器，用来定义PCIe设备需要的内存或IO空间。
+BAR的作用：# PCIe设备通常需要一段地址空间来映射它的内部寄存器、缓冲区等资源。驱动通过访问这段地址空间来控制设备、读写数据。
+BAR就是告诉系统&#34;我需要多大的空间&#34;，然后系统在枚举时给它分配一个基地址，写到BAR寄存器里。之后驱动就可以通过这个基地址来访问设备了。
+BAR的位置：# 配置空间偏移0x10到0x24有6个BAR寄存器，编号BAR0到BAR5。每个BAR是32位的。
+Type 0设备（普通设备）有6个BAR，Type 1设备（桥设备）只有2个BAR。
+BAR的内容：# BAR寄存器的最低位表示地址空间类型：0表示内存空间，1表示IO空间。
+对于内存空间，第1-2位表示地址宽度：00表示32位地址，10表示64位地址。第3位表示是否Prefetchable。高位是基地址。
+对于IO空间，第1位保留，高位是基地址。
+如何计算BAR空间的大小？# 向 BAR 写入 0xFFFFFFFF 读回得到值 val 取低地址位部分（屏蔽掉属性位）： mask = val &amp; 0xFFFFFFF0 计算大小：size = ~mask &#43; 1 64位BAR：# 如果设备需要64位地址空间，会用两个连续的BAR。比如BAR0和BAR1组成一个64位BAR，BAR0存低32位地址，BAR1存高32位地址。这样实际只有5个可用的BAR空间（BAR0&#43;1、BAR2&#43;3、BAR4&#43;5，或者BAR0、BAR1、BAR2&#43;3、BAR4&#43;5等组合）。">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="193">
+
+<title>pcie 问答 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/pcie%E9%97%AE%E7%AD%94/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.2d188dd526ce219a8c84d7c4e996c6752731175a1cf8856f246692370836c7a8.js" integrity="sha256-LRiN1SbOIZqMhNfE6ZbGdScxF1oc&#43;IVvJGaSNwg2x6g=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>pcie 问答</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#pcie配置空间">PCIe配置空间</a>
+      <ul>
+        <li><a href="#配置空间的结构是怎样的有哪些重要的寄存器">配置空间的结构是怎样的？有哪些重要的寄存器？</a></li>
+        <li><a href="#pci专用寄存器和新能力寄存器组">PCI专用寄存器和新能力寄存器组</a></li>
+        <li><a href="#读取slot">读取slot</a></li>
+      </ul>
+    </li>
+    <li><a href="#pcie-bar空间">PCIe BAR空间</a>
+      <ul>
+        <li><a href="#什么是barbase-address-register">什么是BAR（Base Address Register）？</a></li>
+        <li><a href="#bar的作用">BAR的作用：</a></li>
+        <li><a href="#bar的位置">BAR的位置：</a></li>
+        <li><a href="#bar的内容">BAR的内容：</a></li>
+        <li><a href="#如何计算bar空间的大小">如何计算BAR空间的大小？</a></li>
+        <li><a href="#64位bar">64位BAR：</a></li>
+      </ul>
+    </li>
+    <li><a href="#pcie枚举过程">PCIe枚举过程</a>
+      <ul>
+        <li><a href="#什么是pcie枚举详细过程是怎样的">什么是PCIe枚举？详细过程是怎样的？</a></li>
+        <li><a href="#为什么需要枚举">为什么需要枚举：</a></li>
+        <li><a href="#枚举的时机">枚举的时机：</a></li>
+        <li><a href="#枚举的详细过程">枚举的详细过程：</a></li>
+        <li><a href="#枚举的结果">枚举的结果：</a></li>
+      </ul>
+    </li>
+    <li><a href="#枚举过程中如何分配资源">枚举过程中如何分配资源？</a>
+      <ul>
+        <li><a href="#bus资源分配">bus资源分配</a></li>
+        <li><a href="#地址空间分配">地址空间分配：</a></li>
+        <li><a href="#分配策略">分配策略：</a></li>
+      </ul>
+    </li>
+    <li><a href="#pci-bar空间大小为什么不能直接返回而是需要读出后取反1">PCI bar空间大小，为什么不能直接返回而是需要读出后取反+1</a>
+      <ul>
+        <li><a href="#资源角度">资源角度</a></li>
+        <li><a href="#数学角度">数学角度</a></li>
+        <li><a href="#设备地址线角度">设备地址线角度</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>pcie 问答</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="pcie配置空间">PCIe配置空间<a class="anchor" href="#pcie%e9%85%8d%e7%bd%ae%e7%a9%ba%e9%97%b4">#</a></h1>
+<h2 id="配置空间的结构是怎样的有哪些重要的寄存器">配置空间的结构是怎样的？有哪些重要的寄存器？<a class="anchor" href="#%e9%85%8d%e7%bd%ae%e7%a9%ba%e9%97%b4%e7%9a%84%e7%bb%93%e6%9e%84%e6%98%af%e6%80%8e%e6%a0%b7%e7%9a%84%e6%9c%89%e5%93%aa%e4%ba%9b%e9%87%8d%e8%a6%81%e7%9a%84%e5%af%84%e5%ad%98%e5%99%a8">#</a></h2>
+<blockquote class='book-hint '>
+<p>配置空间分为两部分：前256字节的标准配置头和后面的扩展配置空间。</p>
+</blockquote><p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="PCIE%e9%85%8d%e7%bd%ae%e7%a9%ba%e9%97%b4.png">
+    <img src="PCIE%e9%85%8d%e7%bd%ae%e7%a9%ba%e9%97%b4.png" 
+         alt="PCIE配置空间" 
+         />
+  </a>
+</div>
+</p>
+<ul>
+<li>
+<p>前64字节是所有设备都有的公共部分，包括Vendor ID、Device ID、Command、Status、Class Code、BAR等寄存器。</p>
+</li>
+<li>
+<p>后面192字节根据设备类型不同而不同。Type 0是普通设备的配置头，Type 1是桥设备的配置头。</p>
+</li>
+</ul>
+<h2 id="pci专用寄存器和新能力寄存器组">PCI专用寄存器和新能力寄存器组<a class="anchor" href="#pci%e4%b8%93%e7%94%a8%e5%af%84%e5%ad%98%e5%99%a8%e5%92%8c%e6%96%b0%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84">#</a></h2>
+<blockquote class='book-hint '>
+<p>第一个字节是能力寄存器ID，第二个字节是能力寄存器指针
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="%e6%96%b0%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84%e9%80%9a%e7%94%a8%e6%a0%bc%e5%bc%8f.png">
+    <img src="%e6%96%b0%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84%e9%80%9a%e7%94%a8%e6%a0%bc%e5%bc%8f.png" 
+         alt="新能力寄存器组通用格式" 
+         />
+  </a>
+</div>
+</p>
+</blockquote><ul>
+<li>能力寄存器ID，由PCI SIG统一分配，表寄存器组对应的特性
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84ID.png">
+    <img src="%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84ID.png" 
+         alt="能力寄存器组ID" 
+         />
+  </a>
+</div>
+
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="PCIE%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84.png">
+    <img src="PCIE%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8%e7%bb%84.png" 
+         alt="PCIE能力寄存器组" 
+         />
+  </a>
+</div>
+
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="SLOT%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8.png">
+    <img src="SLOT%e8%83%bd%e5%8a%9b%e5%af%84%e5%ad%98%e5%99%a8.png" 
+         alt="SLOT能力寄存器" 
+         />
+  </a>
+</div>
+</li>
+<li>在 PCI 规范中明确要求：所有能力寄存器组的起始地址，必须是 4 字节（双字）对齐的。
+<ul>
+<li>早期 PCI 主机桥、设备的硬件逻辑只支持对齐的 32 位访问</li>
+<li>能力寄存器指针的低两位必须为零。(双字对齐，四字节对齐)</li>
+</ul>
+</li>
+</ul>
+<h2 id="读取slot">读取slot<a class="anchor" href="#%e8%af%bb%e5%8f%96slot">#</a></h2>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="slot%e4%bf%a1%e6%81%af%e8%af%bb%e5%8f%96.PNG">
+    <img src="slot%e4%bf%a1%e6%81%af%e8%af%bb%e5%8f%96.PNG" 
+         alt="alt text" 
+         />
+  </a>
+</div>
+</p>
+<h1 id="pcie-bar空间">PCIe BAR空间<a class="anchor" href="#pcie-bar%e7%a9%ba%e9%97%b4">#</a></h1>
+<h2 id="什么是barbase-address-register">什么是BAR（Base Address Register）？<a class="anchor" href="#%e4%bb%80%e4%b9%88%e6%98%afbarbase-address-register">#</a></h2>
+<p>BAR是配置空间里的一组寄存器，用来定义PCIe设备需要的内存或IO空间。</p>
+<h2 id="bar的作用">BAR的作用：<a class="anchor" href="#bar%e7%9a%84%e4%bd%9c%e7%94%a8">#</a></h2>
+<p>PCIe设备通常需要一段地址空间来映射它的内部寄存器、缓冲区等资源。驱动通过访问这段地址空间来控制设备、读写数据。</p>
+<p>BAR就是告诉系统&quot;我需要多大的空间&quot;，然后系统在枚举时给它分配一个基地址，写到BAR寄存器里。之后驱动就可以通过这个基地址来访问设备了。</p>
+<h2 id="bar的位置">BAR的位置：<a class="anchor" href="#bar%e7%9a%84%e4%bd%8d%e7%bd%ae">#</a></h2>
+<p>配置空间偏移0x10到0x24有6个BAR寄存器，编号BAR0到BAR5。每个BAR是32位的。</p>
+<p>Type 0设备（普通设备）有6个BAR，Type 1设备（桥设备）只有2个BAR。</p>
+<h2 id="bar的内容">BAR的内容：<a class="anchor" href="#bar%e7%9a%84%e5%86%85%e5%ae%b9">#</a></h2>
+<ul>
+<li>
+<p>BAR寄存器的最低位表示地址空间类型：0表示内存空间，1表示IO空间。</p>
+</li>
+<li>
+<p>对于内存空间，第1-2位表示地址宽度：00表示32位地址，10表示64位地址。第3位表示是否Prefetchable。高位是基地址。</p>
+</li>
+<li>
+<p>对于IO空间，第1位保留，高位是基地址。</p>
+</li>
+</ul>
+<h2 id="如何计算bar空间的大小">如何计算BAR空间的大小？<a class="anchor" href="#%e5%a6%82%e4%bd%95%e8%ae%a1%e7%ae%97bar%e7%a9%ba%e9%97%b4%e7%9a%84%e5%a4%a7%e5%b0%8f">#</a></h2>
+<ol>
+<li>向 BAR 写入 0xFFFFFFFF</li>
+<li>读回得到值 val</li>
+<li>取低地址位部分（屏蔽掉属性位）：</li>
+<li>mask = val &amp; 0xFFFFFFF0</li>
+<li>计算大小：size = ~mask + 1</li>
+</ol>
+<h2 id="64位bar">64位BAR：<a class="anchor" href="#64%e4%bd%8dbar">#</a></h2>
+<p>如果设备需要64位地址空间，会用两个连续的BAR。比如BAR0和BAR1组成一个64位BAR，BAR0存低32位地址，BAR1存高32位地址。这样实际只有5个可用的BAR空间（BAR0+1、BAR2+3、BAR4+5，或者BAR0、BAR1、BAR2+3、BAR4+5等组合）。</p>
+<h1 id="pcie枚举过程">PCIe枚举过程<a class="anchor" href="#pcie%e6%9e%9a%e4%b8%be%e8%bf%87%e7%a8%8b">#</a></h1>
+<h2 id="什么是pcie枚举详细过程是怎样的">什么是PCIe枚举？详细过程是怎样的？<a class="anchor" href="#%e4%bb%80%e4%b9%88%e6%98%afpcie%e6%9e%9a%e4%b8%be%e8%af%a6%e7%bb%86%e8%bf%87%e7%a8%8b%e6%98%af%e6%80%8e%e6%a0%b7%e7%9a%84">#</a></h2>
+<p>PCIe枚举是系统启动时，BIOS或操作系统扫描PCIe总线，发现所有设备，并给它们分配资源的过程。</p>
+<h2 id="为什么需要枚举">为什么需要枚举：<a class="anchor" href="#%e4%b8%ba%e4%bb%80%e4%b9%88%e9%9c%80%e8%a6%81%e6%9e%9a%e4%b8%be">#</a></h2>
+<p>PCIe设备是即插即用的，系统不知道有哪些设备、在哪里、需要什么资源。枚举就是让系统自动发现设备，读取设备信息，分配地址空间和中断号，让设备可以正常工作。</p>
+<h2 id="枚举的时机">枚举的时机：<a class="anchor" href="#%e6%9e%9a%e4%b8%be%e7%9a%84%e6%97%b6%e6%9c%ba">#</a></h2>
+<p>第一次枚举在BIOS阶段，BIOS会扫描所有PCIe设备，分配基本资源，让系统能启动。</p>
+<p>第二次枚举在操作系统启动时，内核会重新扫描设备，可能重新分配资源，加载驱动。</p>
+<p>如果支持热插拔，设备插入时也会触发枚举。</p>
+<h2 id="枚举的详细过程">枚举的详细过程：<a class="anchor" href="#%e6%9e%9a%e4%b8%be%e7%9a%84%e8%af%a6%e7%bb%86%e8%bf%87%e7%a8%8b">#</a></h2>
+<p>第一步，扫描总线。从Bus 0开始，依次访问每个Device（0-31）的每个Function（0-7），读取配置空间的Vendor ID。如果Vendor ID不是0xFFFF，说明设备存在。</p>
+<p>第二步，读取设备信息。读取Device ID、Class Code、BAR等信息，判断设备类型和需求。</p>
+<p>第三步，分配Bus号。如果发现桥设备，给它分配一个Secondary Bus号，然后递归扫描这个新总线。</p>
+<p>第四步，探测BAR大小。往BAR写全1，读回来计算需要的空间大小。</p>
+<p>第五步，分配地址空间。根据BAR的大小和类型，从可用的地址空间里分配一段，写到BAR寄存器。</p>
+<p>第六步，分配中断号。给设备分配一个中断号，写到配置空间的Interrupt Line寄存器。</p>
+<p>第七步，使能设备。设置配置空间的Command寄存器，使能内存访问、总线主控等功能。</p>
+<h2 id="枚举的结果">枚举的结果：<a class="anchor" href="#%e6%9e%9a%e4%b8%be%e7%9a%84%e7%bb%93%e6%9e%9c">#</a></h2>
+<p>枚举完成后，每个设备都有了唯一的BDF号（Bus:Device.Function），都分配了地址空间和中断号，可以被驱动访问了。</p>
+<p>系统会建立一个设备树，记录所有设备的拓扑关系和资源分配情况。Linux下可以通过lspci命令查看枚举结果。</p>
+<h1 id="枚举过程中如何分配资源">枚举过程中如何分配资源？<a class="anchor" href="#%e6%9e%9a%e4%b8%be%e8%bf%87%e7%a8%8b%e4%b8%ad%e5%a6%82%e4%bd%95%e5%88%86%e9%85%8d%e8%b5%84%e6%ba%90">#</a></h1>
+<blockquote class='book-hint '>
+<p>枚举过程中，系统需要给每个设备分配地址空间和中断号，这叫做资源分配。</p>
+</blockquote><h2 id="bus资源分配">bus资源分配<a class="anchor" href="#bus%e8%b5%84%e6%ba%90%e5%88%86%e9%85%8d">#</a></h2>
+<blockquote class='book-hint '>
+<p>总线号的分配采用深度优先搜索 (Depth-First Search, DFS) 算法。</p>
+</blockquote><ul>
+<li>
+<p>起始点： 枚举过程从Root Complex（根联合体）开始，Root Complex通常被分配为总线0。</p>
+</li>
+<li>
+<p>桥的发现与分配： 当枚举软件发现一个PCI-to-PCI桥（例如PCIe交换机或Root Port）时，它会为该桥分配三个总线号：</p>
+</li>
+<li>
+<p>Primary Bus Number（主总线号）：桥连接的上游总线号。</p>
+</li>
+<li>
+<p>Secondary Bus Number（次总线号）：桥下游创建的新总线号。</p>
+</li>
+<li>
+<p>Subordinate Bus Number（从属总线号）：该桥下游所有总线中可能存在的最大总线号。</p>
+</li>
+<li>
+<p>深度优先遍历： 分配完桥的总线号后，枚举软件会立即进入新创建的次总线（即桥的下游），继续对其进行枚举，然后再返回到上游总线继续搜索。</p>
+</li>
+<li>
+<p>顺序分配： 总线号是根据发现的顺序依次分配的，确保每个总线都有一个唯一的标识符。</p>
+</li>
+<li>
+<p>从图中可以看出左边的PCIe bus的号比右边的要小，因此左边的这些设备是优先被遍历的，遍历完左边的设备以后再依次遍历右边的设备。</p>
+</li>
+<li>
+<p>最大数量： PCIe架构支持多达256个总线号（0到255）。</p>
+</li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="PCIE%e6%8b%93%e6%89%91.png">
+    <img src="PCIE%e6%8b%93%e6%89%91.png" 
+         alt="PCIE拓扑" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="地址空间分配">地址空间分配：<a class="anchor" href="#%e5%9c%b0%e5%9d%80%e7%a9%ba%e9%97%b4%e5%88%86%e9%85%8d">#</a></h2>
+<ul>
+<li>
+<p>第一步，收集需求。扫描所有设备的BAR，计算每个设备需要多少内存空间、多少IO空间。</p>
+</li>
+<li>
+<p>第二步，规划布局。系统有一段可用的地址空间，需要把它分配给各个设备。要考虑对齐要求、大小限制、Prefetchable属性等。</p>
+</li>
+<li>
+<p>第三步，分配地址。从可用空间里分配一段给设备，写到BAR寄存器。要保证不同设备的地址空间不重叠。</p>
+</li>
+<li>
+<p>第四步，配置桥设备。如果有桥设备，要配置它的Base和Limit寄存器，定义它转发的地址范围。这样桥设备才知道哪些地址要转发到下游。</p>
+</li>
+</ul>
+<h2 id="分配策略">分配策略：<a class="anchor" href="#%e5%88%86%e9%85%8d%e7%ad%96%e7%95%a5">#</a></h2>
+<ul>
+<li>
+<p>系统会优先分配大的空间，然后分配小的空间，这样可以减少碎片。</p>
+</li>
+<li>
+<p>Prefetchable空间和Non-prefetchable空间分开分配，因为它们的属性不同。</p>
+</li>
+<li>
+<p>64位BAR优先分配到高地址空间（4GB以上），32位BAR分配到低地址空间（4GB以下）。</p>
+</li>
+</ul>
+<h3 id="中断号分配">中断号分配：<a class="anchor" href="#%e4%b8%ad%e6%96%ad%e5%8f%b7%e5%88%86%e9%85%8d">#</a></h3>
+<p>传统的INTx中断，系统会给每个设备分配一个中断号（IRQ号），写到配置空间的Interrupt Line寄存器。</p>
+<p>MSI/MSI-X中断，系统会分配一个或多个中断向量，配置到MSI Capability或MSI-X Capability里。</p>
+<h3 id="资源冲突">资源冲突：<a class="anchor" href="#%e8%b5%84%e6%ba%90%e5%86%b2%e7%aa%81">#</a></h3>
+<ul>
+<li>
+<p>如果可用的地址空间不够，或者中断号不够，就会出现资源冲突。这时候有些设备可能分配不到资源，无法正常工作。</p>
+</li>
+<li>
+<p>系统会尝试重新分配资源，或者禁用一些不重要的设备，来解决冲突。</p>
+</li>
+</ul>
+<h1 id="pci-bar空间大小为什么不能直接返回而是需要读出后取反1">PCI bar空间大小，为什么不能直接返回而是需要读出后取反+1<a class="anchor" href="#pci-bar%e7%a9%ba%e9%97%b4%e5%a4%a7%e5%b0%8f%e4%b8%ba%e4%bb%80%e4%b9%88%e4%b8%8d%e8%83%bd%e7%9b%b4%e6%8e%a5%e8%bf%94%e5%9b%9e%e8%80%8c%e6%98%af%e9%9c%80%e8%a6%81%e8%af%bb%e5%87%ba%e5%90%8e%e5%8f%96%e5%8f%8d1">#</a></h1>
+<h2 id="资源角度">资源角度<a class="anchor" href="#%e8%b5%84%e6%ba%90%e8%a7%92%e5%ba%a6">#</a></h2>
+<ul>
+<li>节省寄存器资源</li>
+<li>PCI 规范很早（1990 年代）就定死了：BAR 寄存器只有一个功能：存基地址没有额外寄存器专门存「大小」</li>
+</ul>
+<h2 id="数学角度">数学角度<a class="anchor" href="#%e6%95%b0%e5%ad%a6%e8%a7%92%e5%ba%a6">#</a></h2>
+<ul>
+<li>取反加1”算法的数学本质：从掩码到大小</li>
+<li>读回的值（如 0xFFFFF000）经过清除类型位（bit 0-3）后，得到的是掩码（如 0xFFFFF000）。这个掩码的特点是：低位为0的连续区域，定义了空间大小。计算大小的标准算法“取反加1” (size = (~mask) + 1)，在数学上等价于计算掩码中最低有效位1所代表的值，或者说是从最低位开始的第一个非零位的权重。</li>
+</ul>
+<h2 id="设备地址线角度">设备地址线角度<a class="anchor" href="#%e8%ae%be%e5%a4%87%e5%9c%b0%e5%9d%80%e7%ba%bf%e8%a7%92%e5%ba%a6">#</a></h2>
+<ol>
+<li>假设设备需要 64KB 空间
+64KB = 2¹⁶ 字节
+→ 需要 16 根地址线 A0～A15 来选择内部寄存器
+也就是说：</li>
+</ol>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="pcie%e8%ae%be%e5%a4%87%e5%9c%b0%e5%9d%80.png">
+    <img src="pcie%e8%ae%be%e5%a4%87%e5%9c%b0%e5%9d%80.png" 
+         alt="pcie设备地址" 
+         />
+  </a>
+</div>
+</p>
+<ul>
+<li>A0～A15：设备内部用</li>
+<li>A16 以上：才是真正的基地址位</li>
+<li>低位有多少位不参与地址 → 就是空间大小</li>
+</ul>
+<ol start="2">
+<li>流程</li>
+</ol>
+<ul>
+<li>设备：“低 16 位我内部用，外面给啥我不管”</li>
+<li>硬件：“那我低位直接连 1，不锁存” （硬件不响应低位地址，读操作时自动返回 0</li>
+<li>软件：“写 1 读回来，看哪几位是 0，就知道多大”</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/i2c%E9%A9%B1%E5%8A%A8%E6%A0%88/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>I2C总线</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/pcie%E9%A9%B1%E5%8A%A8%E6%A0%88/" class="flex align-center">
+      <span>pcie驱动栈</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#pcie配置空间">PCIe配置空间</a>
+      <ul>
+        <li><a href="#配置空间的结构是怎样的有哪些重要的寄存器">配置空间的结构是怎样的？有哪些重要的寄存器？</a></li>
+        <li><a href="#pci专用寄存器和新能力寄存器组">PCI专用寄存器和新能力寄存器组</a></li>
+        <li><a href="#读取slot">读取slot</a></li>
+      </ul>
+    </li>
+    <li><a href="#pcie-bar空间">PCIe BAR空间</a>
+      <ul>
+        <li><a href="#什么是barbase-address-register">什么是BAR（Base Address Register）？</a></li>
+        <li><a href="#bar的作用">BAR的作用：</a></li>
+        <li><a href="#bar的位置">BAR的位置：</a></li>
+        <li><a href="#bar的内容">BAR的内容：</a></li>
+        <li><a href="#如何计算bar空间的大小">如何计算BAR空间的大小？</a></li>
+        <li><a href="#64位bar">64位BAR：</a></li>
+      </ul>
+    </li>
+    <li><a href="#pcie枚举过程">PCIe枚举过程</a>
+      <ul>
+        <li><a href="#什么是pcie枚举详细过程是怎样的">什么是PCIe枚举？详细过程是怎样的？</a></li>
+        <li><a href="#为什么需要枚举">为什么需要枚举：</a></li>
+        <li><a href="#枚举的时机">枚举的时机：</a></li>
+        <li><a href="#枚举的详细过程">枚举的详细过程：</a></li>
+        <li><a href="#枚举的结果">枚举的结果：</a></li>
+      </ul>
+    </li>
+    <li><a href="#枚举过程中如何分配资源">枚举过程中如何分配资源？</a>
+      <ul>
+        <li><a href="#bus资源分配">bus资源分配</a></li>
+        <li><a href="#地址空间分配">地址空间分配：</a></li>
+        <li><a href="#分配策略">分配策略：</a></li>
+      </ul>
+    </li>
+    <li><a href="#pci-bar空间大小为什么不能直接返回而是需要读出后取反1">PCI bar空间大小，为什么不能直接返回而是需要读出后取反+1</a>
+      <ul>
+        <li><a href="#资源角度">资源角度</a></li>
+        <li><a href="#数学角度">数学角度</a></li>
+        <li><a href="#设备地址线角度">设备地址线角度</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
