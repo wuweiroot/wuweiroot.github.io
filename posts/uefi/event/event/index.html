@@ -9,7 +9,7 @@ https://github.com/alex-shpak/hugo-book
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);Edk2\MdeModulePkg\Core\Dxe\Event\Event.c# //生产者
-CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //CoreSignalEvent触发# 加入 gEventSignalQueue 队列 //消费者
+CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发# 加入 gEventSignalQueue 队列 //消费者
 CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL# Status= gBS-&gt;SignalEvent(Event);
 CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加入 gEventPending CoreRestoreTpl CoreCheckEvent //触发 EVT_NOTIFY_WAIT# Status = gBS-&gt;CheckEvent(AbsolutePointer-&gt;WaitForInput );
 ">
@@ -19,7 +19,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
   <meta property="og:site_name" content="大象的blog">
   <meta property="og:title" content="event">
   <meta property="og:description" content="典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);Edk2\MdeModulePkg\Core\Dxe\Event\Event.c# //生产者
-CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //CoreSignalEvent触发# 加入 gEventSignalQueue 队列 //消费者
+CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发# 加入 gEventSignalQueue 队列 //消费者
 CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL# Status= gBS-&gt;SignalEvent(Event);
 CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加入 gEventPending CoreRestoreTpl CoreCheckEvent //触发 EVT_NOTIFY_WAIT# Status = gBS-&gt;CheckEvent(AbsolutePointer-&gt;WaitForInput );">
   <meta property="og:locale" content="zh_cn">
@@ -31,12 +31,12 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
 
   <meta itemprop="name" content="event">
   <meta itemprop="description" content="典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);Edk2\MdeModulePkg\Core\Dxe\Event\Event.c# //生产者
-CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //CoreSignalEvent触发# 加入 gEventSignalQueue 队列 //消费者
+CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发# 加入 gEventSignalQueue 队列 //消费者
 CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL# Status= gBS-&gt;SignalEvent(Event);
 CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加入 gEventPending CoreRestoreTpl CoreCheckEvent //触发 EVT_NOTIFY_WAIT# Status = gBS-&gt;CheckEvent(AbsolutePointer-&gt;WaitForInput );">
   <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="wordCount" content="188">
+  <meta itemprop="wordCount" content="190">
 
 <title>event | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
@@ -46,7 +46,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.4865ebb6cb225d5008cbf7a6bb23a694181b53416fd6a5e587edbd21c11f77dd.js" integrity="sha256-SGXrtssiXVAIy/emuyOmlBgbU0Fv1qXlh&#43;29IcEfd90=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.3473782110b2ebb968a09db4514dc916bc5281e6715a6cb26bd7d8beb5193a6d.js" integrity="sha256-NHN4IRCy67looJ20UU3JFrxSgeZxWmyya9fYvrUZOm0=" crossorigin="anonymous"></script>
 
 
 
@@ -142,7 +142,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
     <li><a href="#edk2mdemodulepkgcoredxeeventeventc">Edk2\MdeModulePkg\Core\Dxe\Event\Event.c</a></li>
     <li><a href="#corecreateevent">CoreCreateEvent</a>
       <ul>
-        <li><a href="#evt_notify_signal-coresignalevent触发">EVT_NOTIFY_SIGNAL //CoreSignalEvent触发</a></li>
+        <li><a href="#evt_notify_signal-通过-coresignalevent-触发">EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发</a></li>
       </ul>
     </li>
     <li><a href="#coresignalevent--触发-evt_notify_signal">CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL</a></li>
@@ -211,7 +211,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
 <li>构造IEVENT对象,输出到出参Event</li>
 <li></li>
 </ul>
-<h2 id="evt_notify_signal-coresignalevent触发">EVT_NOTIFY_SIGNAL //CoreSignalEvent触发<a class="anchor" href="#evt_notify_signal-coresignalevent%e8%a7%a6%e5%8f%91">#</a></h2>
+<h2 id="evt_notify_signal-通过-coresignalevent-触发">EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发<a class="anchor" href="#evt_notify_signal-%e9%80%9a%e8%bf%87-coresignalevent-%e8%a7%a6%e5%8f%91">#</a></h2>
 <ul>
 <li>加入 gEventSignalQueue 队列</li>
 </ul>
@@ -336,8 +336,8 @@ EXCEPTION_HANDLER_DATA      mExceptionHandlerData;</p>
   </div>
   <div>
   
-    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/i2c%E9%A9%B1%E5%8A%A8%E6%A0%88/" class="flex align-center">
-      <span>I2C总线</span>
+    <a href="/posts/uefi/event/event2/" class="flex align-center">
+      <span>event 内核代码解析</span>
       <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
     </a>
   
@@ -378,7 +378,7 @@ EXCEPTION_HANDLER_DATA      mExceptionHandlerData;</p>
     <li><a href="#edk2mdemodulepkgcoredxeeventeventc">Edk2\MdeModulePkg\Core\Dxe\Event\Event.c</a></li>
     <li><a href="#corecreateevent">CoreCreateEvent</a>
       <ul>
-        <li><a href="#evt_notify_signal-coresignalevent触发">EVT_NOTIFY_SIGNAL //CoreSignalEvent触发</a></li>
+        <li><a href="#evt_notify_signal-通过-coresignalevent-触发">EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发</a></li>
       </ul>
     </li>
     <li><a href="#coresignalevent--触发-evt_notify_signal">CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL</a></li>
