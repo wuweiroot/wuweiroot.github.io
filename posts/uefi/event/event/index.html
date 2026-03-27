@@ -17,7 +17,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
 <meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/event/event/">
   <meta property="og:site_name" content="大象的blog">
-  <meta property="og:title" content="event">
+  <meta property="og:title" content="大象的blog">
   <meta property="og:description" content="典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);Edk2\MdeModulePkg\Core\Dxe\Event\Event.c# //生产者
 CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发# 加入 gEventSignalQueue 队列 //消费者
 CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL# Status= gBS-&gt;SignalEvent(Event);
@@ -25,20 +25,16 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
   <meta property="og:locale" content="zh_cn">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
-    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
-    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
 
 
-  <meta itemprop="name" content="event">
+  <meta itemprop="name" content="大象的blog">
   <meta itemprop="description" content="典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);Edk2\MdeModulePkg\Core\Dxe\Event\Event.c# //生产者
 CoreCreateEvent# IN UINT32 Type, IN EFI_TPL NotifyTpl, IN EFI_EVENT_NOTIFY NotifyFunction OPTIONAL, IN CONST VOID *NotifyContext OPTIONAL, IN CONST EFI_GUID *EventGroup OPTIONAL, OUT EFI_EVENT *Event 构造IEVENT对象,输出到出参Event EVT_NOTIFY_SIGNAL //通过 CoreSignalEvent 触发# 加入 gEventSignalQueue 队列 //消费者
 CoreSignalEvent // 触发 EVT_NOTIFY_SIGNAL# Status= gBS-&gt;SignalEvent(Event);
 CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加入 gEventPending CoreRestoreTpl CoreCheckEvent //触发 EVT_NOTIFY_WAIT# Status = gBS-&gt;CheckEvent(AbsolutePointer-&gt;WaitForInput );">
-  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
   <meta itemprop="wordCount" content="190">
 
-<title>event | 大象的blog</title>
+<title>Event | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
 <link rel="manifest" href="/manifest.json">
 <link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/event/event/">
@@ -46,7 +42,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.3473782110b2ebb968a09db4514dc916bc5281e6715a6cb26bd7d8beb5193a6d.js" integrity="sha256-NHN4IRCy67looJ20UU3JFrxSgeZxWmyya9fYvrUZOm0=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.aab81a5971585c51968b81af3fb4039ee9110e216f84a8d97663f3ef5dfe88bf.js" integrity="sha256-qrgaWXFYXFGWi4GvP7QDnukRDiFvhKjZdmPz713&#43;iL8=" crossorigin="anonymous"></script>
 
 
 
@@ -122,7 +118,7 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
     <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
   </label>
 
-  <h3>event</h3>
+  <h3>Event</h3>
 
   <label for="toc-control">
     
@@ -174,13 +170,8 @@ CoreNotifySignalList 等待通知函数加入队列 gEventQueue flag 记录加�
       
       
 <article class="markdown book-post">
-  <h1>event</h1>
+  <h1>Event</h1>
   
-  <div class="flex align-center text-small book-post-date">
-    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
-    <span>March 13, 2026</span>
-  </div>
-
 
 
   
@@ -333,11 +324,16 @@ EXCEPTION_HANDLER_DATA      mExceptionHandlerData;</p>
   <div class="flex flex-wrap justify-between">
   <div>
   
+    <a href="/posts/uefi/%E9%87%8D%E5%90%AF%E6%A6%82%E5%BF%B5%E6%98%8E%E7%BB%86/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>重启概念明细</span>
+    </a>
+  
   </div>
   <div>
   
-    <a href="/posts/uefi/event/event2/" class="flex align-center">
-      <span>event 内核代码解析</span>
+    <a href="/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/" class="flex align-center">
+      <span>资料路径</span>
       <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
     </a>
   
