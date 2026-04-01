@@ -8,7 +8,7 @@ https://github.com/alex-shpak/hugo-book
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content=" 同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+<meta name="description" content=" 同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI 通过 GUID 派发。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 软件 SMI 虽由软件写入触发，但属于异步 SMI，其派遣函数中需要通过遍历 CPU 状态来定位触发源，因为硬件未记录 CPU 编号。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
 GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList
 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
@@ -16,7 +16,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 <meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/smi/smi2/">
   <meta property="og:site_name" content="大象的blog">
   <meta property="og:title" content="SMI注册与触发流程">
-  <meta property="og:description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+  <meta property="og:description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI 通过 GUID 派发。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 软件 SMI 虽由软件写入触发，但属于异步 SMI，其派遣函数中需要通过遍历 CPU 状态来定位触发源，因为硬件未记录 CPU 编号。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
 GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList">
   <meta property="og:locale" content="zh_cn">
   <meta property="og:type" content="article">
@@ -26,11 +26,11 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 
 
   <meta itemprop="name" content="SMI注册与触发流程">
-  <meta itemprop="description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+  <meta itemprop="description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI 通过 GUID 派发。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 软件 SMI 虽由软件写入触发，但属于异步 SMI，其派遣函数中需要通过遍历 CPU 状态来定位触发源，因为硬件未记录 CPU 编号。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
 GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList">
   <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="wordCount" content="575">
+  <meta itemprop="wordCount" content="608">
 
 <title>SMI注册与触发流程 | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
@@ -40,7 +40,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.8d6557609da603b0ed4fcef07434789739773057e1e59658c6983a4f1641a334.js" integrity="sha256-jWVXYJ2mA7DtT87wdDR4lzl3MFfh5ZZYxpg6TxZBozQ=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.e44bc7731ba2b76f6bab5acdfe02bd883872621e42cc92a86b7fba15e5727a9c.js" integrity="sha256-5EvHcxuit29rq1rN/gK9iDhyYh5CzJKoa3&#43;6FeVyepw=" crossorigin="anonymous"></script>
 
 
 
@@ -146,7 +146,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
     </li>
     <li><a href="#smi中断注册">smi中断注册</a>
       <ul>
-        <li><a href="#以gpi类型为例">以Gpi类型为例</a></li>
+        <li><a href="#以gpi类型为例异步">以Gpi类型为例（异步</a></li>
         <li><a href="#概述">概述</a></li>
       </ul>
     </li>
@@ -172,6 +172,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
       <ul>
         <li><a href="#创建-smm-services-table">创建 SMM Services Table</a></li>
         <li><a href="#smm触发入口-smmentrypoint">SMM触发入口 SmmEntryPoint</a></li>
+        <li><a href="#同步">同步</a></li>
       </ul>
     </li>
   </ul>
@@ -202,8 +203,9 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 
 
   <div class="book-post-content markdown-inner"><ul>
-<li>同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。</li>
+<li>同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI 通过 GUID 派发。</li>
 <li>异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。</li>
+<li>软件 SMI 虽由软件写入触发，但属于异步 SMI，其派遣函数中需要通过遍历 CPU 状态来定位触发源，因为硬件未记录 CPU 编号。</li>
 </ul>
 <h1 id="全局变量">全局变量<a class="anchor" href="#%e5%85%a8%e5%b1%80%e5%8f%98%e9%87%8f">#</a></h1>
 <h2 id="各个类型fch-smm-结点头">各个类型Fch Smm 结点头<a class="anchor" href="#%e5%90%84%e4%b8%aa%e7%b1%bb%e5%9e%8bfch-smm-%e7%bb%93%e7%82%b9%e5%a4%b4">#</a></h2>
@@ -247,7 +249,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 <h2 id="根smi-入口">根SMI 入口<a class="anchor" href="#%e6%a0%b9smi-%e5%85%a5%e5%8f%a3">#</a></h2>
 <p>mRootSmiEntry</p>
 <h1 id="smi中断注册">smi中断注册<a class="anchor" href="#smi%e4%b8%ad%e6%96%ad%e6%b3%a8%e5%86%8c">#</a></h1>
-<h2 id="以gpi类型为例">以Gpi类型为例<a class="anchor" href="#%e4%bb%a5gpi%e7%b1%bb%e5%9e%8b%e4%b8%ba%e4%be%8b">#</a></h2>
+<h2 id="以gpi类型为例异步">以Gpi类型为例（异步<a class="anchor" href="#%e4%bb%a5gpi%e7%b1%bb%e5%9e%8b%e4%b8%ba%e4%be%8b%e5%bc%82%e6%ad%a5">#</a></h2>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">输入</span> gEfiSmmGpiDispatch2ProtocolGuid
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>  GpiContext.GpiNum <span style="color:#f92672">=</span> CONFIG_EC_GEVENT ;
@@ -491,7 +493,25 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
 </span></span><span style="display:flex;"><span>                                                     <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> HeadFchSmmGpiNodePtr
 </span></span><span style="display:flex;"><span>                                                            <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> EcSmiHandler
 </span></span><span style="display:flex;"><span>        
-</span></span></code></pre></div></div>
+</span></span></code></pre></div><h2 id="同步">同步<a class="anchor" href="#%e5%90%8c%e6%ad%a5">#</a></h2>
+<ul>
+<li>注册用于变量服务的软SMI调度函数</li>
+</ul>
+<pre tabindex="0"><code>  Status = gSmst-&gt;SmiHandlerRegister (
+                    SmmLenovoVariableCommunicationDispatcher,
+                    &amp;gLenovoVariableCommunicationGuid,
+                    &amp;mDispatchHandler);
+
+            </code></pre><ul>
+<li>触发函数  Status = SmmCommunication-&gt;Communicate(SmmCommunication, CommBuffer, &amp;CommSize);
+<ul>
+<li>CommBuffer中包含guid</li>
+<li>函数原型来来着 gEfiSmmCommunicationProtocolGuid下的 mSmmCommunication</li>
+<li>mSmmCommunication 函数内部会调用 SmiManage</li>
+</ul>
+</li>
+</ul>
+</div>
 </article>
  
       
@@ -561,7 +581,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
     </li>
     <li><a href="#smi中断注册">smi中断注册</a>
       <ul>
-        <li><a href="#以gpi类型为例">以Gpi类型为例</a></li>
+        <li><a href="#以gpi类型为例异步">以Gpi类型为例（异步</a></li>
         <li><a href="#概述">概述</a></li>
       </ul>
     </li>
@@ -587,6 +607,7 @@ GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&
       <ul>
         <li><a href="#创建-smm-services-table">创建 SMM Services Table</a></li>
         <li><a href="#smm触发入口-smmentrypoint">SMM触发入口 SmmEntryPoint</a></li>
+        <li><a href="#同步">同步</a></li>
       </ul>
     </li>
   </ul>
