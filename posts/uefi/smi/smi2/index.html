@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content=" 同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/smi/smi2/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="SMI注册与触发流程">
+  <meta property="og:description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-13T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-13T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="SMI注册与触发流程">
+  <meta itemprop="description" content="同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。 异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。 全局变量# 各个类型Fch Smm 结点头# FCH_SMM_SW_NODE *HeadFchSmmSwNodePtr; FCH_SMM_SX_NODE *HeadFchSmmSxNodePtr; FCH_SMM_PWRBTN_NODE *HeadFchSmmPwrBtnNodePtr; FCH_SMM_PERIODICAL_NODE *HeadFchSmmPeriodicalNodePtr; FCH_SMM_GPI_NODE *HeadFchSmmGpiNodePtr; FCH_SMM_USB_NODE *HeadFchSmmUsbNodePtr; FCH_SMM_MISC_NODE *HeadFchSmmMiscNodePtr; GPI SMI Node 头# HeadFchSmmGpiNodePtr
+GPI SMI Node# typedef struct _FCH_SMM_GPI_NODE { EFI_HANDLE DispatchHandle; ///&lt; Dispatch Hangle EFI_SMM_GPI_REGISTER_CONTEXT Context; ///&lt; Register context FCH_SMM_GPI_HANDLER_ENTRY_POINT2 CallBack2Function; ///&lt; SMM handler entry point 2 struct _FCH_SMM_GPI_NODE *FchGpiNodePtr; ///&lt; pointer to next node SMI_HANDLER 对象# typedef struct { UINTN Signature; LIST_ENTRY Link; // Link on SMI_ENTRY.SmiHandlers EFI_SMM_HANDLER_ENTRY_POINT2 Handler; // The smm handler&#39;s entry point ，回调函数 UINTN CallerAddr; // The address of caller who register the SMI handler. SMI_ENTRY *SmiEntry; VOID *Context; // for profile UINTN ContextSize; // for profile } SMI_HANDLER;硬件SMI入口列表# mHardwareSmiEntryList">
+  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="wordCount" content="575">
+
+<title>SMI注册与触发流程 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/smi/smi2/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.8d6557609da603b0ed4fcef07434789739773057e1e59658c6983a4f1641a334.js" integrity="sha256-jWVXYJ2mA7DtT87wdDR4lzl3MFfh5ZZYxpg6TxZBozQ=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>SMI注册与触发流程</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#全局变量">全局变量</a>
+      <ul>
+        <li><a href="#各个类型fch-smm-结点头">各个类型Fch Smm 结点头</a></li>
+        <li><a href="#gpi-smi-node-头">GPI SMI Node 头</a></li>
+        <li><a href="#gpi-smi-node">GPI SMI Node</a></li>
+        <li><a href="#smi_handler-对象">SMI_HANDLER 对象</a></li>
+        <li><a href="#硬件smi入口列表">硬件SMI入口列表</a></li>
+        <li><a href="#smi-入口">SMI 入口</a></li>
+        <li><a href="#smi入口列表">SMI入口列表</a></li>
+        <li><a href="#根smi-入口">根SMI 入口</a></li>
+      </ul>
+    </li>
+    <li><a href="#smi中断注册">smi中断注册</a>
+      <ul>
+        <li><a href="#以gpi类型为例">以Gpi类型为例</a></li>
+        <li><a href="#概述">概述</a></li>
+      </ul>
+    </li>
+    <li><a href="#fch-smm-派遣">FCH SMM 派遣</a>
+      <ul>
+        <li><a href="#注册-dispatchhandle">注册 DispatchHandle</a></li>
+        <li><a href="#输入-msmihandlerprofileprotocol">输入 mSmiHandlerProfileProtocol</a></li>
+        <li><a href="#输出-gefismmgpidispatch2protocolguid">输出 gEfiSmmGpiDispatch2ProtocolGuid</a></li>
+      </ul>
+    </li>
+    <li><a href="#smi-调试支持">SMI 调试支持</a>
+      <ul>
+        <li><a href="#输出-gsmihandlerprofileguid">输出 gSmiHandlerProfileGuid</a></li>
+        <li><a href="#在smm-锁之前注册事件">在SMM 锁之前注册事件</a></li>
+      </ul>
+    </li>
+    <li><a href="#fch-smm-数据">Fch SMM 数据</a>
+      <ul>
+        <li><a href="#fchsmmdispatchertable">FchSmmDispatcherTable</a></li>
+      </ul>
+    </li>
+    <li><a href="#smm-核心层">Smm 核心层</a>
+      <ul>
+        <li><a href="#创建-smm-services-table">创建 SMM Services Table</a></li>
+        <li><a href="#smm触发入口-smmentrypoint">SMM触发入口 SmmEntryPoint</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>SMI注册与触发流程</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>March 13, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><ul>
+<li>同步 SMI：仅指通过 EFI_SMM_COMMUNICATE_PROTOCOL 发起的、携带数据缓冲区的 SMI。</li>
+<li>异步 SMI：包括所有硬件触发（GPI、电源按钮、定时器、USB）以及软件端口触发的 SMI（如 SwSmi）。</li>
+</ul>
+<h1 id="全局变量">全局变量<a class="anchor" href="#%e5%85%a8%e5%b1%80%e5%8f%98%e9%87%8f">#</a></h1>
+<h2 id="各个类型fch-smm-结点头">各个类型Fch Smm 结点头<a class="anchor" href="#%e5%90%84%e4%b8%aa%e7%b1%bb%e5%9e%8bfch-smm-%e7%bb%93%e7%82%b9%e5%a4%b4">#</a></h2>
+<ul>
+<li>FCH_SMM_SW_NODE              *HeadFchSmmSwNodePtr;</li>
+<li>FCH_SMM_SX_NODE              *HeadFchSmmSxNodePtr;</li>
+<li>FCH_SMM_PWRBTN_NODE          *HeadFchSmmPwrBtnNodePtr;</li>
+<li>FCH_SMM_PERIODICAL_NODE      *HeadFchSmmPeriodicalNodePtr;</li>
+<li>FCH_SMM_GPI_NODE             *HeadFchSmmGpiNodePtr;</li>
+<li>FCH_SMM_USB_NODE             *HeadFchSmmUsbNodePtr;</li>
+<li>FCH_SMM_MISC_NODE            *HeadFchSmmMiscNodePtr;</li>
+</ul>
+<h2 id="gpi-smi-node-头">GPI SMI Node 头<a class="anchor" href="#gpi-smi-node-%e5%a4%b4">#</a></h2>
+<p>HeadFchSmmGpiNodePtr</p>
+<h2 id="gpi-smi-node">GPI SMI Node<a class="anchor" href="#gpi-smi-node">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> _FCH_SMM_GPI_NODE {
+</span></span><span style="display:flex;"><span>  EFI_HANDLE                              DispatchHandle;         <span style="color:#75715e">///&lt; Dispatch Hangle
+</span></span></span><span style="display:flex;"><span>  EFI_SMM_GPI_REGISTER_CONTEXT            Context;                <span style="color:#75715e">///&lt; Register context
+</span></span></span><span style="display:flex;"><span>  FCH_SMM_GPI_HANDLER_ENTRY_POINT2        CallBack2Function;      <span style="color:#75715e">///&lt; SMM handler entry point 2
+</span></span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">struct</span> _FCH_SMM_GPI_NODE                <span style="color:#f92672">*</span>FchGpiNodePtr;         <span style="color:#75715e">///&lt; pointer to next node
+</span></span></span></code></pre></div><h2 id="smi_handler-对象">SMI_HANDLER 对象<a class="anchor" href="#smi_handler-%e5%af%b9%e8%b1%a1">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> {
+</span></span><span style="display:flex;"><span>  UINTN                           Signature;
+</span></span><span style="display:flex;"><span>  LIST_ENTRY                      Link;       <span style="color:#75715e">// Link on SMI_ENTRY.SmiHandlers
+</span></span></span><span style="display:flex;"><span>  EFI_SMM_HANDLER_ENTRY_POINT2    Handler;    <span style="color:#75715e">// The smm handler&#39;s entry point ，回调函数
+</span></span></span><span style="display:flex;"><span>  UINTN                           CallerAddr; <span style="color:#75715e">// The address of caller who register the SMI handler.
+</span></span></span><span style="display:flex;"><span>  SMI_ENTRY                       <span style="color:#f92672">*</span>SmiEntry;
+</span></span><span style="display:flex;"><span>  VOID                            <span style="color:#f92672">*</span>Context;    <span style="color:#75715e">// for profile
+</span></span></span><span style="display:flex;"><span>  UINTN                           ContextSize; <span style="color:#75715e">// for profile
+</span></span></span><span style="display:flex;"><span>} SMI_HANDLER;</span></span></code></pre></div><h2 id="硬件smi入口列表">硬件SMI入口列表<a class="anchor" href="#%e7%a1%ac%e4%bb%b6smi%e5%85%a5%e5%8f%a3%e5%88%97%e8%a1%a8">#</a></h2>
+<p>mHardwareSmiEntryList</p>
+<h2 id="smi-入口">SMI 入口<a class="anchor" href="#smi-%e5%85%a5%e5%8f%a3">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> {
+</span></span><span style="display:flex;"><span>  UINTN         Signature;
+</span></span><span style="display:flex;"><span>  LIST_ENTRY    AllEntries; <span style="color:#75715e">// All entries
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  EFI_GUID      HandlerType; <span style="color:#75715e">// Type of interrupt
+</span></span></span><span style="display:flex;"><span>  LIST_ENTRY    SmiHandlers; <span style="color:#75715e">// All handlers
+</span></span></span><span style="display:flex;"><span>} SMI_ENTRY;</span></span></code></pre></div><h2 id="smi入口列表">SMI入口列表<a class="anchor" href="#smi%e5%85%a5%e5%8f%a3%e5%88%97%e8%a1%a8">#</a></h2>
+<p>mSmiEntryList</p>
+<h2 id="根smi-入口">根SMI 入口<a class="anchor" href="#%e6%a0%b9smi-%e5%85%a5%e5%8f%a3">#</a></h2>
+<p>mRootSmiEntry</p>
+<h1 id="smi中断注册">smi中断注册<a class="anchor" href="#smi%e4%b8%ad%e6%96%ad%e6%b3%a8%e5%86%8c">#</a></h1>
+<h2 id="以gpi类型为例">以Gpi类型为例<a class="anchor" href="#%e4%bb%a5gpi%e7%b1%bb%e5%9e%8b%e4%b8%ba%e4%be%8b">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">输入</span> gEfiSmmGpiDispatch2ProtocolGuid
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  GpiContext.GpiNum <span style="color:#f92672">=</span> CONFIG_EC_GEVENT ;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  Status <span style="color:#f92672">=</span> GpiDispatch<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">Register</span> (
+</span></span><span style="display:flex;"><span>    GpiDispatch ,
+</span></span><span style="display:flex;"><span>    (EFI_SMM_HANDLER_ENTRY_POINT2)EcSmiHandler ,  <span style="color:#75715e">//回调函数
+</span></span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>GpiContext ,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>Handle
+</span></span><span style="display:flex;"><span>    ) ;</span></span></code></pre></div><h2 id="概述">概述<a class="anchor" href="#%e6%a6%82%e8%bf%b0">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">上层驱动</span> (EC)
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">通过</span> gEfiSmmGpiDispatch2ProtocolGuid<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">Register</span>()
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>     <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>     <span style="color:#960050;background-color:#1e0010">└─</span> FchSmmGpiDispatch2RegisterWorker
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>           <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">创建</span> FCH_SMM_GPI_NODE <span style="color:#960050;background-color:#1e0010">并加入</span> HeadFchSmmGpiNodePtr
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>           <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">硬件使能</span>GPI中断
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>           <span style="color:#960050;background-color:#1e0010">└─</span> (<span style="color:#960050;background-color:#1e0010">若调试协议存在</span>) mSmiHandlerProfileProtocol<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">RegisterHandler</span>()
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>                   <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">创建调试</span> SMI_HANDLER<span style="color:#960050;background-color:#1e0010">，加入</span> mHardwareSmiEntryList <span style="color:#960050;background-color:#1e0010">对应的</span> SMI_ENTRY
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">└─</span> (SMM核心) <span style="color:#a6e22e">SmiHandlerRegister</span>(FchSmmDispatchHandler, NULL, ...)
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">创建核心</span> SMI_HANDLER<span style="color:#960050;background-color:#1e0010">，加入</span> mRootSmiEntry.SmiHandlers
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>SMI <span style="color:#960050;background-color:#1e0010">触发</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">└─</span> SmmEntryPoint <span style="color:#f92672">-&gt;</span> SmiManage
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> mRootSmiEntry <span style="color:#960050;background-color:#1e0010">下的所有核心</span> SMI_HANDLER
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">│</span>     <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> FchSmmDispatchHandler
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">│</span>           <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> FchSmmDispatcherTable
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">│</span>                 <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> FchSmmGpiDispatcher
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">│</span>                       <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> HeadFchSmmGpiNodePtr<span style="color:#960050;background-color:#1e0010">，找到匹配节点</span>
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">│</span>                             <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> EcSmiHandler
+</span></span><span style="display:flex;"><span>         <span style="color:#960050;background-color:#1e0010">└─</span> (<span style="color:#960050;background-color:#1e0010">可能同时</span>) <span style="color:#960050;background-color:#1e0010">调试层记录不参与中断分发，仅用于信息查询</span></span></span></code></pre></div><h1 id="fch-smm-派遣">FCH SMM 派遣<a class="anchor" href="#fch-smm-%e6%b4%be%e9%81%a3">#</a></h1>
+<blockquote class='book-hint '>
+<p>Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmDispatcher.c</p>
+</blockquote><h2 id="注册-dispatchhandle">注册 DispatchHandle<a class="anchor" href="#%e6%b3%a8%e5%86%8c-dispatchhandle">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>  Status <span style="color:#f92672">=</span> gSmst<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">SmiHandlerRegister</span> (
+</span></span><span style="display:flex;"><span>                    FchSmmDispatchHandler,
+</span></span><span style="display:flex;"><span>                    NULL,
+</span></span><span style="display:flex;"><span>                    <span style="color:#f92672">&amp;</span>DispatchHandle
+</span></span><span style="display:flex;"><span>                    );</span></span></code></pre></div><ul>
+<li>DispatchHandle 内会遍历 FchSmmDispatcherTable 执行各个类型的派遣函数 SmiDispatcher</li>
+</ul>
+<h2 id="输入-msmihandlerprofileprotocol">输入 mSmiHandlerProfileProtocol<a class="anchor" href="#%e8%be%93%e5%85%a5-msmihandlerprofileprotocol">#</a></h2>
+<ul>
+<li>gSmst-&gt;SmmLocateProtocol (&amp;gSmiHandlerProfileGuid, NULL, &amp;mSmiHandlerProfileProtocol);</li>
+</ul>
+<h2 id="输出-gefismmgpidispatch2protocolguid">输出 gEfiSmmGpiDispatch2ProtocolGuid<a class="anchor" href="#%e8%be%93%e5%87%ba-gefismmgpidispatch2protocolguid">#</a></h2>
+<h3 id="register">Register<a class="anchor" href="#register">#</a></h3>
+<p>// ====================== 1. 调用核心工作函数 (真正的注册逻辑) ======================</p>
+<ul>
+<li>FchSmmGpiDispatch2RegisterWorker
+<ul>
+<li>创建GPI SMI 节点 并且加入GPI SMI 链表 HeadFchSmmGpiNodePtr</li>
+<li>ACPIMMIO32 (ACPI_MMIO_BASE + SMI_BASE + FCH_SMI_REG14) |= (1 &laquo; SmiSciNum); //写smi寄存器</li>
+</ul>
+</li>
+</ul>
+<p>// ====================== 2. 调试协议：注册SMI中断追踪信息 ======================</p>
+<ul>
+<li>mSmiHandlerProfileProtocol-&gt;RegisterHandler
+<ul>
+<li>RETURN_ADDRESS(L)：安全宏，仅 L=0 有效，返回地址；否则返回空；</li>
+<li>_ReturnAddress()：编译器内置，获取直接调用者的返回地址；</li>
+</ul>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>    RegisterStatus <span style="color:#f92672">=</span> mSmiHandlerProfileProtocol<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">RegisterHandler</span> (
+</span></span><span style="display:flex;"><span>                                                    mSmiHandlerProfileProtocol,
+</span></span><span style="display:flex;"><span>                                                    <span style="color:#f92672">&amp;</span>gEfiSmmGpiDispatch2ProtocolGuid,
+</span></span><span style="display:flex;"><span>                                                    DispatchFunction,  <span style="color:#75715e">//回调函数
+</span></span></span><span style="display:flex;"><span>                                                    (PHYSICAL_ADDRESS)(UINTN)<span style="color:#a6e22e">RETURN_ADDRESS</span> (<span style="color:#ae81ff">0</span>),  <span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span>                                                    (VOID<span style="color:#f92672">*</span>)RegisterContext,
+</span></span><span style="display:flex;"><span>                                                    <span style="color:#66d9ef">sizeof</span> (EFI_SMM_GPI_REGISTER_CONTEXT)
+</span></span><span style="display:flex;"><span>                                                    )</span></span></code></pre></div><h1 id="smi-调试支持">SMI 调试支持<a class="anchor" href="#smi-%e8%b0%83%e8%af%95%e6%94%af%e6%8c%81">#</a></h1>
+<blockquote class='book-hint '>
+<p>Edk2\MdeModulePkg\Core\PiSmmCore\SmiHandlerProfile.c</p>
+</blockquote><h2 id="输出-gsmihandlerprofileguid">输出 gSmiHandlerProfileGuid<a class="anchor" href="#%e8%be%93%e5%87%ba-gsmihandlerprofileguid">#</a></h2>
+<ul>
+<li>
+<p>SmiHandlerProfileRegisterHandler</p>
+<ul>
+<li>创建 SmiHandler
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>Signature   <span style="color:#f92672">=</span> SMI_HANDLER_SIGNATURE;
+</span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>Handler     <span style="color:#f92672">=</span> Handler; <span style="color:#75715e">// 回调函数
+</span></span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>CallerAddr  <span style="color:#f92672">=</span> (UINTN)CallerAddress; <span style="color:#75715e">//调试使用
+</span></span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>Context     <span style="color:#f92672">=</span> Context;
+</span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>ContextSize <span style="color:#f92672">=</span> ContextSize;</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p>SmmCoreFindHardwareSmiEntry</p>
+<ul>
+<li>检查同GUID类型的 SmiEntry 在 mHardwareSmiEntryList 是否存在</li>
+<li>如果存在就返回 SmiEntry 对象 不存在就创建 SmiEntry 并且加入 mHardwareSmiEntryList 在返回  SmiEntry</li>
+</ul>
+</li>
+<li>
+<p>SmiHandler-&gt;SmiEntry = SmiEntry;</p>
+</li>
+<li>
+<p>将SmiHandler 挂在 SmiEntry-&gt;SmiHandlers上</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>List <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>SmiEntry<span style="color:#f92672">-&gt;</span>SmiHandlers;
+</span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>SmiEntry <span style="color:#f92672">=</span> SmiEntry;
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">InsertTailList</span> (List, <span style="color:#f92672">&amp;</span>SmiHandler<span style="color:#f92672">-&gt;</span>Link);</span></span></code></pre></div></li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/smi%e6%b3%a8%e5%86%8c.svg">
+    <img src="/images/smi%e6%b3%a8%e5%86%8c.svg" 
+         alt="smi注册" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="在smm-锁之前注册事件">在SMM 锁之前注册事件<a class="anchor" href="#%e5%9c%a8smm-%e9%94%81%e4%b9%8b%e5%89%8d%e6%b3%a8%e5%86%8c%e4%ba%8b%e4%bb%b6">#</a></h2>
+<ul>
+<li>SmmReadyToLockInSmiHandlerProfile
+<ul>
+<li>打印三大列表的内容 mRootSmiEntryList  mSmiEntryList mHardwareSmiEntryList</li>
+</ul>
+</li>
+</ul>
+<h1 id="fch-smm-数据">Fch SMM 数据<a class="anchor" href="#fch-smm-%e6%95%b0%e6%8d%ae">#</a></h1>
+<blockquote class='book-hint '>
+<p>Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmData.c</p>
+</blockquote><h2 id="fchsmmdispatchertable">FchSmmDispatcherTable<a class="anchor" href="#fchsmmdispatchertable">#</a></h2>
+<blockquote class='book-hint '>
+<p>表内汇总各个类型的派遣函数，派遣函数内部会遍历链表节点，执行对应的callback函数</p>
+</blockquote><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">///
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">/// AMD FCH SMM Dispatcher Structure
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">///
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> {
+</span></span><span style="display:flex;"><span>  UINT32                                StatusReg;      <span style="color:#75715e">///&lt; Status Register
+</span></span></span><span style="display:flex;"><span>  UINT32                                SmiStatusBit;   <span style="color:#75715e">///&lt; Status Bit
+</span></span></span><span style="display:flex;"><span>  AMD_SM_SMM_CHILD_DISPATCHER_HANDLER   SmiDispatcher;  <span style="color:#75715e">///&lt; Dispatcher Address
+</span></span></span><span style="display:flex;"><span>} FCH_SMM_DISPATCHER_TABLE;</span></span></code></pre></div><ul>
+<li>HeadFchSmmSwNodePtr;</li>
+<li>HeadFchSmmSxNodePtr;</li>
+<li>HeadFchSmmPwrBtnNodePtr;</li>
+<li>HeadFchSmmPeriodicalNodePtr;</li>
+<li>HeadFchSmmGpiNodePtr;</li>
+<li>HeadFchSmmUsbNodePtr;</li>
+<li>HeadFchSmmMiscNodePtr;</li>
+</ul>
+<h1 id="smm-核心层">Smm 核心层<a class="anchor" href="#smm-%e6%a0%b8%e5%bf%83%e5%b1%82">#</a></h1>
+<blockquote class='book-hint '>
+<p>Edk2\MdeModulePkg\Core\PiSmmCore\PiSmmCore.c</p>
+</blockquote><h2 id="创建-smm-services-table">创建 SMM Services Table<a class="anchor" href="#%e5%88%9b%e5%bb%ba-smm-services-table">#</a></h2>
+<blockquote class='book-hint '>
+<p>gSmmCorePrivate-&gt;Smst          = &amp;gSmmCoreSmst;</p>
+</blockquote><h3 id="smihandlerregister--handler-----handlertype----dispatchhandle">SmiHandlerRegister（  Handler,     *HandlerType  ,  *DispatchHandle）<a class="anchor" href="#smihandlerregister--handler-----handlertype----dispatchhandle">#</a></h3>
+<ul>
+<li>
+<p>创建 SmiHandler</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>Signature   <span style="color:#f92672">=</span> SMI_HANDLER_SIGNATURE;
+</span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>Handler     <span style="color:#f92672">=</span> Handler; <span style="color:#75715e">// 回调函数
+</span></span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>CallerAddr  <span style="color:#f92672">=</span> (UINTN)CallerAddress; <span style="color:#75715e">//调试使用
+</span></span></span></code></pre></div></li>
+<li>
+<p>判断入参 HandlerType</p>
+</li>
+<li>
+<p>HandlerType == NULL</p>
+<ul>
+<li>SmiEntry = &amp;mRootSmiEntry;</li>
+</ul>
+</li>
+<li>
+<p>HandlerType != NULL</p>
+<ul>
+<li>SmmCoreFindSmiEntry</li>
+<li>检查同GUID类型的 SmiEntry 在 mSmiEntryList 是否存在</li>
+<li>如果存在就返回 SmiEntry 对象 不存在就创建 SmiEntry 并且加入 mSmiEntryList 在返回  SmiEntry</li>
+</ul>
+</li>
+<li>
+<p>SmiHandler-&gt;SmiEntry = SmiEntry;</p>
+</li>
+<li>
+<p>将SmiHandler 挂在 SmiEntry-&gt;SmiHandlers上</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>List <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>SmiEntry<span style="color:#f92672">-&gt;</span>SmiHandlers;
+</span></span><span style="display:flex;"><span>SmiHandler<span style="color:#f92672">-&gt;</span>SmiEntry <span style="color:#f92672">=</span> SmiEntry;
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">InsertTailList</span> (List, <span style="color:#f92672">&amp;</span>SmiHandler<span style="color:#f92672">-&gt;</span>Link);</span></span></code></pre></div></li>
+</ul>
+<p>
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/root_smi.svg">
+    <img src="/images/root_smi.svg" 
+         alt="alt text" 
+         />
+  </a>
+</div>
+
+
+<div class="post-img-view">
+  <a data-fancybox="gallery" href="/images/smi%e5%85%a5%e5%8f%a3%e8%a1%a8.svg">
+    <img src="/images/smi%e5%85%a5%e5%8f%a3%e8%a1%a8.svg" 
+         alt="alt text" 
+         />
+  </a>
+</div>
+</p>
+<h2 id="smm触发入口-smmentrypoint">SMM触发入口 SmmEntryPoint<a class="anchor" href="#smm%e8%a7%a6%e5%8f%91%e5%85%a5%e5%8f%a3-smmentrypoint">#</a></h2>
+<h3 id="smimanage">SmiManage<a class="anchor" href="#smimanage">#</a></h3>
+<blockquote class='book-hint '>
+<p>Smi中断入口
+判断 HandlerType</p>
+</blockquote><ul>
+<li>HandlerType == NULL
+<ul>
+<li>SmiEntry = &amp;mRootSmiEntry;</li>
+</ul>
+</li>
+<li>HandlerType != NULL
+<ul>
+<li>SmmCoreFindSmiEntry</li>
+<li>检查同GUID类型的 mSmiEntryList 并且取出</li>
+</ul>
+</li>
+<li>通过SmiEntry找到SmiHandler，遍历执行 SmiHandler-&gt;Handler</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>CPU <span style="color:#960050;background-color:#1e0010">因</span> SMI <span style="color:#960050;background-color:#1e0010">进入</span> SMM
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">▼</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SmmEntryPoint</span>()
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">更新</span> SMST<span style="color:#960050;background-color:#1e0010">、执行钩子</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">├─</span> <span style="color:#960050;background-color:#1e0010">处理同步</span> SMI<span style="color:#960050;background-color:#1e0010">（</span>Communication Buffer<span style="color:#960050;background-color:#1e0010">）</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">│</span>      <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#a6e22e">SmiManage</span>(HandlerType <span style="color:#f92672">=</span> GUID, ...)
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">│</span>             <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">在</span> mSmiEntryList <span style="color:#960050;background-color:#1e0010">中找到对应</span> GUID <span style="color:#960050;background-color:#1e0010">的</span> SMI_ENTRY
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">│</span>                    <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历其</span> SmiHandlers<span style="color:#960050;background-color:#1e0010">，调用处理程序（如通信协议回调）</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">│</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">处理异步</span> SMI
+</span></span><span style="display:flex;"><span>           <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#a6e22e">SmiManage</span>(NULL, NULL, NULL, NULL)
+</span></span><span style="display:flex;"><span>                  <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">使用</span> mRootSmiEntry<span style="color:#960050;background-color:#1e0010">（根入口）</span>
+</span></span><span style="display:flex;"><span>                         <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历其</span> SmiHandlers
+</span></span><span style="display:flex;"><span>                                <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> FchSmmDispatchHandler<span style="color:#960050;background-color:#1e0010">（之前注册的）</span>
+</span></span><span style="display:flex;"><span>                                       <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> FchSmmDispatcherTable
+</span></span><span style="display:flex;"><span>                                              <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> FchSmmGpiDispatcher
+</span></span><span style="display:flex;"><span>                                                     <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">遍历</span> HeadFchSmmGpiNodePtr
+</span></span><span style="display:flex;"><span>                                                            <span style="color:#960050;background-color:#1e0010">└─</span> <span style="color:#960050;background-color:#1e0010">调用</span> EcSmiHandler
+</span></span><span style="display:flex;"><span>        
+</span></span></code></pre></div></div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE/pcie/pcie%E9%A9%B1%E5%8A%A8%E6%A0%88/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>pcie驱动栈</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/uefi/" class="flex align-center">
+      <span>uefi</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#全局变量">全局变量</a>
+      <ul>
+        <li><a href="#各个类型fch-smm-结点头">各个类型Fch Smm 结点头</a></li>
+        <li><a href="#gpi-smi-node-头">GPI SMI Node 头</a></li>
+        <li><a href="#gpi-smi-node">GPI SMI Node</a></li>
+        <li><a href="#smi_handler-对象">SMI_HANDLER 对象</a></li>
+        <li><a href="#硬件smi入口列表">硬件SMI入口列表</a></li>
+        <li><a href="#smi-入口">SMI 入口</a></li>
+        <li><a href="#smi入口列表">SMI入口列表</a></li>
+        <li><a href="#根smi-入口">根SMI 入口</a></li>
+      </ul>
+    </li>
+    <li><a href="#smi中断注册">smi中断注册</a>
+      <ul>
+        <li><a href="#以gpi类型为例">以Gpi类型为例</a></li>
+        <li><a href="#概述">概述</a></li>
+      </ul>
+    </li>
+    <li><a href="#fch-smm-派遣">FCH SMM 派遣</a>
+      <ul>
+        <li><a href="#注册-dispatchhandle">注册 DispatchHandle</a></li>
+        <li><a href="#输入-msmihandlerprofileprotocol">输入 mSmiHandlerProfileProtocol</a></li>
+        <li><a href="#输出-gefismmgpidispatch2protocolguid">输出 gEfiSmmGpiDispatch2ProtocolGuid</a></li>
+      </ul>
+    </li>
+    <li><a href="#smi-调试支持">SMI 调试支持</a>
+      <ul>
+        <li><a href="#输出-gsmihandlerprofileguid">输出 gSmiHandlerProfileGuid</a></li>
+        <li><a href="#在smm-锁之前注册事件">在SMM 锁之前注册事件</a></li>
+      </ul>
+    </li>
+    <li><a href="#fch-smm-数据">Fch SMM 数据</a>
+      <ul>
+        <li><a href="#fchsmmdispatchertable">FchSmmDispatcherTable</a></li>
+      </ul>
+    </li>
+    <li><a href="#smm-核心层">Smm 核心层</a>
+      <ul>
+        <li><a href="#创建-smm-services-table">创建 SMM Services Table</a></li>
+        <li><a href="#smm触发入口-smmentrypoint">SMM触发入口 SmmEntryPoint</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
