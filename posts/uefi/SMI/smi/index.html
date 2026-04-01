@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="#define CONFIG_ASLSMI_COMMAND 0xF5
+Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH# OperationRegion( MNVS, SystemMemory, CONFIG_LCFC_MNVS_AREA_BASE_OFFSET, CONFIG_LCFC_MNVS_AREA_LENGTH )
+Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi# Method( UAWO , 1 ) { #if ( defined ( OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) &amp;&amp; OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) Return ( \UAWS( Arg0 ) ) #else //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY Return (0) #endif //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY }Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi# OperationRegion( SMI0, SystemIO, 0xB2, 0x01 ) Field( SMI0, ByteAcc, NoLock, Preserve ) { APMC, 8 } Field( MNVS, AnyAcc, NoLock, Preserve ) { Offset( CONFIG_MNVS_ASLSMI_OFFSET ), CMD, 8, ERR , 32, PAR0, 32, PAR1, 32, PAR2, 32, PAR3, 32, } Method( SMI, 5 , Serialized) { //定义了SMI方法接受5个参数 Acquire( MSMI, 0xFFFF ) // Start NVS access Store( ARG0, CMD ) // Set command ID Store( 1, ERR ) // Set pending error //@RETRYSMI Store( ARG1, PAR0 ) // Set Parameter Store( ARG2, PAR1 ) Store( ARG3, PAR2 ) Store( ARG4, PAR3 ) Store( CONFIG_ASLSMI_COMMAND, APMC ) // Genarate SMI While( LEqual( ERR, 1 ) ) { // Retry if pending error //@RETRYSMI Sleep( 100 ) Sleep( 1 ) //@RETRYSMI Store( CONFIG_ASLSMI_COMMAND, APMC ) } Store( PAR0, Local0 ) // Release( MSMI ) // End of NVS access Return( Local0 ) // Return data }Method( UAWS, 1 ){ Return ( SMI( 0x13, // Command : 0x13 - USB Power Supply 2 ARG0, // Para0 : Data 0,0,0 ) ) }Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c# InitializeAcpiNvs Status = gBS-&gt;AllocatePool(EfiACPIMemoryNVS, sizeof(EFI_TP_ACPI_NVS_AREA), &amp;mTpAcpiNvs.Area); //ACPI指定位置 //后面更新到ACPI区域指定位置，和ASL CODE 形成对应 UpdateDSDTTable //更新 ASL CODE 中 MNVS 地址为 mTpAcpiNvs.Area Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c# 注册 AslSmiDispatcher Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c# AslSmiDispatcher //根据入参选取smi回调函数 //参数写在NV区域 Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h# AslSmiInterface //所有的smi中断函数 //&amp;gEfiSmmSwDispatch2ProtocolGuid, &amp;gEfiSmmSwDispatch2Protocol, SwContext.SwSmiInputValue = CONFIG_ASLSMI_COMMAND ; Status = SwDispatch-&gt;Register ( //gEfiSmmSwDispatch2ProtocolGuid SwDispatch , AslSmiDispatcher , &amp;SwContext , &amp;Handle ) ; 触发方式 IoWrite8(0xB0, CONFIG_ASLSMI_COMMAND); Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c# FchSmmSwDispatch2RegisterWorker // gEfiSmmSwDispatch2ProtocolGuid
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/smi/smi/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="大象的blog">
+  <meta property="og:description" content="#define CONFIG_ASLSMI_COMMAND 0xF5
+Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH# OperationRegion( MNVS, SystemMemory, CONFIG_LCFC_MNVS_AREA_BASE_OFFSET, CONFIG_LCFC_MNVS_AREA_LENGTH )
+Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi# Method( UAWO , 1 ) { #if ( defined ( OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) &amp;&amp; OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) Return ( \UAWS( Arg0 ) ) #else //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY Return (0) #endif //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY }Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi# OperationRegion( SMI0, SystemIO, 0xB2, 0x01 ) Field( SMI0, ByteAcc, NoLock, Preserve ) { APMC, 8 } Field( MNVS, AnyAcc, NoLock, Preserve ) { Offset( CONFIG_MNVS_ASLSMI_OFFSET ), CMD, 8, ERR , 32, PAR0, 32, PAR1, 32, PAR2, 32, PAR3, 32, } Method( SMI, 5 , Serialized) { //定义了SMI方法接受5个参数 Acquire( MSMI, 0xFFFF ) // Start NVS access Store( ARG0, CMD ) // Set command ID Store( 1, ERR ) // Set pending error //@RETRYSMI Store( ARG1, PAR0 ) // Set Parameter Store( ARG2, PAR1 ) Store( ARG3, PAR2 ) Store( ARG4, PAR3 ) Store( CONFIG_ASLSMI_COMMAND, APMC ) // Genarate SMI While( LEqual( ERR, 1 ) ) { // Retry if pending error //@RETRYSMI Sleep( 100 ) Sleep( 1 ) //@RETRYSMI Store( CONFIG_ASLSMI_COMMAND, APMC ) } Store( PAR0, Local0 ) // Release( MSMI ) // End of NVS access Return( Local0 ) // Return data }Method( UAWS, 1 ){ Return ( SMI( 0x13, // Command : 0x13 - USB Power Supply 2 ARG0, // Para0 : Data 0,0,0 ) ) }Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c# InitializeAcpiNvs Status = gBS-&gt;AllocatePool(EfiACPIMemoryNVS, sizeof(EFI_TP_ACPI_NVS_AREA), &amp;mTpAcpiNvs.Area); //ACPI指定位置 //后面更新到ACPI区域指定位置，和ASL CODE 形成对应 UpdateDSDTTable //更新 ASL CODE 中 MNVS 地址为 mTpAcpiNvs.Area Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c# 注册 AslSmiDispatcher Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c# AslSmiDispatcher //根据入参选取smi回调函数 //参数写在NV区域 Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h# AslSmiInterface //所有的smi中断函数 //&amp;gEfiSmmSwDispatch2ProtocolGuid, &amp;gEfiSmmSwDispatch2Protocol, SwContext.SwSmiInputValue = CONFIG_ASLSMI_COMMAND ; Status = SwDispatch-&gt;Register ( //gEfiSmmSwDispatch2ProtocolGuid SwDispatch , AslSmiDispatcher , &amp;SwContext , &amp;Handle ) ; 触发方式 IoWrite8(0xB0, CONFIG_ASLSMI_COMMAND); Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c# FchSmmSwDispatch2RegisterWorker // gEfiSmmSwDispatch2ProtocolGuid">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+
+  <meta itemprop="name" content="大象的blog">
+  <meta itemprop="description" content="#define CONFIG_ASLSMI_COMMAND 0xF5
+Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH# OperationRegion( MNVS, SystemMemory, CONFIG_LCFC_MNVS_AREA_BASE_OFFSET, CONFIG_LCFC_MNVS_AREA_LENGTH )
+Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi# Method( UAWO , 1 ) { #if ( defined ( OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) &amp;&amp; OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) Return ( \UAWS( Arg0 ) ) #else //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY Return (0) #endif //OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY }Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi# OperationRegion( SMI0, SystemIO, 0xB2, 0x01 ) Field( SMI0, ByteAcc, NoLock, Preserve ) { APMC, 8 } Field( MNVS, AnyAcc, NoLock, Preserve ) { Offset( CONFIG_MNVS_ASLSMI_OFFSET ), CMD, 8, ERR , 32, PAR0, 32, PAR1, 32, PAR2, 32, PAR3, 32, } Method( SMI, 5 , Serialized) { //定义了SMI方法接受5个参数 Acquire( MSMI, 0xFFFF ) // Start NVS access Store( ARG0, CMD ) // Set command ID Store( 1, ERR ) // Set pending error //@RETRYSMI Store( ARG1, PAR0 ) // Set Parameter Store( ARG2, PAR1 ) Store( ARG3, PAR2 ) Store( ARG4, PAR3 ) Store( CONFIG_ASLSMI_COMMAND, APMC ) // Genarate SMI While( LEqual( ERR, 1 ) ) { // Retry if pending error //@RETRYSMI Sleep( 100 ) Sleep( 1 ) //@RETRYSMI Store( CONFIG_ASLSMI_COMMAND, APMC ) } Store( PAR0, Local0 ) // Release( MSMI ) // End of NVS access Return( Local0 ) // Return data }Method( UAWS, 1 ){ Return ( SMI( 0x13, // Command : 0x13 - USB Power Supply 2 ARG0, // Para0 : Data 0,0,0 ) ) }Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c# InitializeAcpiNvs Status = gBS-&gt;AllocatePool(EfiACPIMemoryNVS, sizeof(EFI_TP_ACPI_NVS_AREA), &amp;mTpAcpiNvs.Area); //ACPI指定位置 //后面更新到ACPI区域指定位置，和ASL CODE 形成对应 UpdateDSDTTable //更新 ASL CODE 中 MNVS 地址为 mTpAcpiNvs.Area Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c# 注册 AslSmiDispatcher Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c# AslSmiDispatcher //根据入参选取smi回调函数 //参数写在NV区域 Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h# AslSmiInterface //所有的smi中断函数 //&amp;gEfiSmmSwDispatch2ProtocolGuid, &amp;gEfiSmmSwDispatch2Protocol, SwContext.SwSmiInputValue = CONFIG_ASLSMI_COMMAND ; Status = SwDispatch-&gt;Register ( //gEfiSmmSwDispatch2ProtocolGuid SwDispatch , AslSmiDispatcher , &amp;SwContext , &amp;Handle ) ; 触发方式 IoWrite8(0xB0, CONFIG_ASLSMI_COMMAND); Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c# FchSmmSwDispatch2RegisterWorker // gEfiSmmSwDispatch2ProtocolGuid">
+  <meta itemprop="wordCount" content="315">
+
+<title>Smi | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/smi/smi/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.187e4c88bd41347ea435855c3c0346ae636a85ddb928a5f22f58340e2822e40d.js" integrity="sha256-GH5MiL1BNH6kNYVcPANGrmNqhd25KKXyL1g0Digi5A0=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Smi</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#config-lcfc_mnvs_area_base_offset-0x04000000---config_lcfc_mnvs_area_length">Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH</a></li>
+    <li><a href="#lenovolenovopkgacpiacpitableslenovodsdthotkeyasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi</a></li>
+    <li><a href="#lenovolenovopkgacpiacpitableslenovodsdtsmiasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi</a></li>
+    <li><a href="#lenovolenovopkgtpacpinvsinitdxedxetpacpinvsinitc">Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmsmmaslsmic">Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmaslsmihandlerc">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmaslsmihandlerh">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmswdispatcherfchsmmswdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdatac">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmData.c</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmDispatcher.c</a>
+      <ul>
+        <li><a href="#fchsmmdispatcherentry-注册fch-smi中断函数数组-fchsmmdispatchertable">FchSmmDispatcherEntry //注册FCH smi中断函数数组 FchSmmDispatcherTable</a></li>
+      </ul>
+    </li>
+    <li><a href="#edk2mdemodulepkgcorepismmcorepismmcorec">Edk2\MdeModulePkg\Core\PiSmmCore\PiSmmCore.c</a>
+      <ul>
+        <li><a href="#gsmmcoresmst--包含-smihandlerregister-成员">gSmmCoreSmst  //包含 SmiHandlerRegister 成员</a></li>
+        <li><a href="#smmentrypoint-smm模块入口地址-smi中断触发后跑这个">SmmEntryPoint //SMM模块入口地址 smi中断触发后跑这个</a></li>
+      </ul>
+    </li>
+    <li><a href="#edk2mdemodulepkgcorepismmcoresmic">Edk2\MdeModulePkg\Core\PiSmmCore\Smi.c</a>
+      <ul>
+        <li><a href="#smihandlerregister-将--fchsmmdispatchhandler-插入-smientry-smihandlers-节点">SmiHandlerRegister //将  FchSmmDispatchHandler 插入 SmiEntry-&gt;SmiHandlers 节点</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>Smi</h1>
+  
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>#define CONFIG_ASLSMI_COMMAND                    0xF5</p>
+<h1 id="config-lcfc_mnvs_area_base_offset-0x04000000---config_lcfc_mnvs_area_length">Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH<a class="anchor" href="#config-lcfc_mnvs_area_base_offset-0x04000000---config_lcfc_mnvs_area_length">#</a></h1>
+<p>OperationRegion( MNVS, SystemMemory, CONFIG_LCFC_MNVS_AREA_BASE_OFFSET, CONFIG_LCFC_MNVS_AREA_LENGTH )</p>
+<h1 id="lenovolenovopkgacpiacpitableslenovodsdthotkeyasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi<a class="anchor" href="#lenovolenovopkgacpiacpitableslenovodsdthotkeyasi">#</a></h1>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>    <span style="color:#a6e22e">Method</span>( UAWO , <span style="color:#ae81ff">1</span> ) {
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#if ( defined ( OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY ) &amp;&amp; OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY )
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Return</span> ( <span style="color:#960050;background-color:#1e0010">\</span><span style="color:#a6e22e">UAWS</span>( Arg0 ) )
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#else </span><span style="color:#75715e">//OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Return</span> (<span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#endif </span><span style="color:#75715e">//OPTION_LENOVO_SUPPORT_USB_POWER_SUPPLY
+</span></span></span><span style="display:flex;"><span>    }</span></span></code></pre></div><h1 id="lenovolenovopkgacpiacpitableslenovodsdtsmiasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi<a class="anchor" href="#lenovolenovopkgacpiacpitableslenovodsdtsmiasi">#</a></h1>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#a6e22e">OperationRegion</span>( SMI0, SystemIO, <span style="color:#ae81ff">0xB2</span>, <span style="color:#ae81ff">0x01</span> )
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Field</span>( SMI0, ByteAcc, NoLock, Preserve ) {
+</span></span><span style="display:flex;"><span>    APMC, <span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Field</span>( MNVS, AnyAcc, NoLock, Preserve ) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Offset</span>( CONFIG_MNVS_ASLSMI_OFFSET ),
+</span></span><span style="display:flex;"><span>    CMD,     <span style="color:#ae81ff">8</span>,
+</span></span><span style="display:flex;"><span>    ERR ,   <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>    PAR0,   <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>    PAR1,   <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>    PAR2,   <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>    PAR3,   <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Method</span>( SMI, <span style="color:#ae81ff">5</span> , Serialized) {  <span style="color:#75715e">//定义了SMI方法接受5个参数
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Acquire</span>( MSMI, <span style="color:#ae81ff">0xFFFF</span> )        <span style="color:#75715e">// Start NVS access
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( ARG0, CMD )             <span style="color:#75715e">// Set command ID
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( <span style="color:#ae81ff">1</span>, ERR )                <span style="color:#75715e">// Set pending error         //@RETRYSMI
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( ARG1, PAR0 )            <span style="color:#75715e">// Set Parameter
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( ARG2, PAR1 )
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( ARG3, PAR2 )
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( ARG4, PAR3 )
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( CONFIG_ASLSMI_COMMAND, APMC ) <span style="color:#75715e">// Genarate SMI
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">While</span>( <span style="color:#a6e22e">LEqual</span>( ERR, <span style="color:#ae81ff">1</span> ) ) {    <span style="color:#75715e">// Retry if pending error
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//@RETRYSMI            Sleep( 100 )
+</span></span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">Sleep</span>( <span style="color:#ae81ff">1</span> )                                              <span style="color:#75715e">//@RETRYSMI
+</span></span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">Store</span>( CONFIG_ASLSMI_COMMAND, APMC )
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Store</span>( PAR0, Local0 )          <span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Release</span>( MSMI )                <span style="color:#75715e">// End of NVS access
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Return</span>( Local0 )               <span style="color:#75715e">// Return data
+</span></span></span><span style="display:flex;"><span>}</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#a6e22e">Method</span>( UAWS, <span style="color:#ae81ff">1</span> ){
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">Return</span> ( <span style="color:#a6e22e">SMI</span>( <span style="color:#ae81ff">0x13</span>,                     <span style="color:#75715e">// Command : 0x13 - USB Power Supply 2
+</span></span></span><span style="display:flex;"><span>                    ARG0,                     <span style="color:#75715e">// Para0   : Data
+</span></span></span><span style="display:flex;"><span>                    <span style="color:#ae81ff">0</span>,<span style="color:#ae81ff">0</span>,<span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>                    ) )
+</span></span><span style="display:flex;"><span>}</span></span></code></pre></div><h1 id="lenovolenovopkgtpacpinvsinitdxedxetpacpinvsinitc">Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c<a class="anchor" href="#lenovolenovopkgtpacpinvsinitdxedxetpacpinvsinitc">#</a></h1>
+<ul>
+<li>InitializeAcpiNvs</li>
+<li>Status = gBS-&gt;AllocatePool(EfiACPIMemoryNVS, sizeof(EFI_TP_ACPI_NVS_AREA), &amp;mTpAcpiNvs.Area); //ACPI指定位置 //后面更新到ACPI区域指定位置，和ASL CODE 形成对应</li>
+<li>UpdateDSDTTable //更新 ASL CODE 中 MNVS 地址为 mTpAcpiNvs.Area</li>
+</ul>
+<h1 id="lenovolenovopkgaslsmismmsmmaslsmic">Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c<a class="anchor" href="#lenovolenovopkgaslsmismmsmmaslsmic">#</a></h1>
+<ul>
+<li>注册 AslSmiDispatcher</li>
+</ul>
+<h1 id="lenovolenovopkgaslsmismmaslsmihandlerc">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c<a class="anchor" href="#lenovolenovopkgaslsmismmaslsmihandlerc">#</a></h1>
+<ul>
+<li>AslSmiDispatcher //根据入参选取smi回调函数  //参数写在NV区域</li>
+</ul>
+<h1 id="lenovolenovopkgaslsmismmaslsmihandlerh">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h<a class="anchor" href="#lenovolenovopkgaslsmismmaslsmihandlerh">#</a></h1>
+<ul>
+<li>AslSmiInterface  //所有的smi中断函数</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">//&amp;gEfiSmmSwDispatch2ProtocolGuid,            &amp;gEfiSmmSwDispatch2Protocol,
+</span></span></span><span style="display:flex;"><span>SwContext.SwSmiInputValue <span style="color:#f92672">=</span> CONFIG_ASLSMI_COMMAND ; 
+</span></span><span style="display:flex;"><span>Status <span style="color:#f92672">=</span> SwDispatch<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">Register</span> ( <span style="color:#75715e">//gEfiSmmSwDispatch2ProtocolGuid
+</span></span></span><span style="display:flex;"><span>    SwDispatch ,
+</span></span><span style="display:flex;"><span>    AslSmiDispatcher ,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>SwContext ,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>Handle
+</span></span><span style="display:flex;"><span>) ;</span></span></code></pre></div><ul>
+<li>触发方式 IoWrite8(0xB0, CONFIG_ASLSMI_COMMAND);</li>
+<li></li>
+</ul>
+<h1 id="amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmswdispatcherfchsmmswdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c<a class="anchor" href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmswdispatcherfchsmmswdispatcherc">#</a></h1>
+<ul>
+<li>
+<p>FchSmmSwDispatch2RegisterWorker // gEfiSmmSwDispatch2ProtocolGuid</p>
+</li>
+<li>
+<p>将功能函数写入 HeadFchSmmSwNodePtr 链表节点 //在 FchSmmSwDispatchHandler 中遍历调用</p>
+</li>
+<li>
+<p>FchSmmSwDispatchHandler // 被封装成结构体 FchSmmDispatcherTable 的成员</p>
+</li>
+</ul>
+<h1 id="amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdatac">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmData.c<a class="anchor" href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdatac">#</a></h1>
+<ul>
+<li>FchSmmDispatcherTable 包含所有SMI中断函数成员，包含软件类型，硬件类型</li>
+<li></li>
+</ul>
+<h1 id="amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmDispatcher.c<a class="anchor" href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdispatcherc">#</a></h1>
+<h2 id="fchsmmdispatcherentry-注册fch-smi中断函数数组-fchsmmdispatchertable">FchSmmDispatcherEntry //注册FCH smi中断函数数组 FchSmmDispatcherTable<a class="anchor" href="#fchsmmdispatcherentry-%e6%b3%a8%e5%86%8cfch-smi%e4%b8%ad%e6%96%ad%e5%87%bd%e6%95%b0%e6%95%b0%e7%bb%84-fchsmmdispatchertable">#</a></h2>
+<p>Status = gSmst-&gt;SmiHandlerRegister (
+FchSmmDispatchHandler, //循环执行 FchSmmDispatcherTable 中函数
+NULL,
+&amp;DispatchHandle
+);</p>
+<h1 id="edk2mdemodulepkgcorepismmcorepismmcorec">Edk2\MdeModulePkg\Core\PiSmmCore\PiSmmCore.c<a class="anchor" href="#edk2mdemodulepkgcorepismmcorepismmcorec">#</a></h1>
+<h2 id="gsmmcoresmst--包含-smihandlerregister-成员">gSmmCoreSmst  //包含 SmiHandlerRegister 成员<a class="anchor" href="#gsmmcoresmst--%e5%8c%85%e5%90%ab-smihandlerregister-%e6%88%90%e5%91%98">#</a></h2>
+<h2 id="smmentrypoint-smm模块入口地址-smi中断触发后跑这个">SmmEntryPoint //SMM模块入口地址 smi中断触发后跑这个<a class="anchor" href="#smmentrypoint-smm%e6%a8%a1%e5%9d%97%e5%85%a5%e5%8f%a3%e5%9c%b0%e5%9d%80-smi%e4%b8%ad%e6%96%ad%e8%a7%a6%e5%8f%91%e5%90%8e%e8%b7%91%e8%bf%99%e4%b8%aa">#</a></h2>
+<ul>
+<li>SmiManage //遍历 SmiEntry-&gt;SmiHandlers 触发</li>
+</ul>
+<h1 id="edk2mdemodulepkgcorepismmcoresmic">Edk2\MdeModulePkg\Core\PiSmmCore\Smi.c<a class="anchor" href="#edk2mdemodulepkgcorepismmcoresmic">#</a></h1>
+<h2 id="smihandlerregister-将--fchsmmdispatchhandler-插入-smientry-smihandlers-节点">SmiHandlerRegister //将  FchSmmDispatchHandler 插入 SmiEntry-&gt;SmiHandlers 节点<a class="anchor" href="#smihandlerregister-%e5%b0%86--fchsmmdispatchhandler-%e6%8f%92%e5%85%a5-smientry-smihandlers-%e8%8a%82%e7%82%b9">#</a></h2>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/smi/smi-acpi/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>Smi Acpi</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/%E8%B5%84%E6%96%99%E8%B7%AF%E5%BE%84/" class="flex align-center">
+      <span>资料路径</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#config-lcfc_mnvs_area_base_offset-0x04000000---config_lcfc_mnvs_area_length">Config LCFC_MNVS_AREA_BASE_OFFSET, 0x04000000 - CONFIG_LCFC_MNVS_AREA_LENGTH</a></li>
+    <li><a href="#lenovolenovopkgacpiacpitableslenovodsdthotkeyasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\HotKey.asi</a></li>
+    <li><a href="#lenovolenovopkgacpiacpitableslenovodsdtsmiasi">Lenovo\LenovoPkg\Acpi\AcpiTables\Lenovo\Dsdt\Smi.asi</a></li>
+    <li><a href="#lenovolenovopkgtpacpinvsinitdxedxetpacpinvsinitc">Lenovo\LenovoPkg\TpAcpiNvsInit\Dxe\DxeTpAcpiNvsInit.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmsmmaslsmic">Lenovo\LenovoPkg\AslSmi\Smm\SmmAslSmi.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmaslsmihandlerc">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.c</a></li>
+    <li><a href="#lenovolenovopkgaslsmismmaslsmihandlerh">Lenovo\LenovoPkg\AslSmi\Smm\AslSmiHandler.h</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmswdispatcherfchsmmswdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmSwDispatcher\FchSmmSwDispatcher.c</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdatac">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmData.c</a></li>
+    <li><a href="#amdagesamodulepkgfchtacomafchtacomasmmdispatcherfchsmmdispatcherc">Amd\AgesaModulePkg\Fch\Tacoma\FchTacomaSmmDispatcher\FchSmmDispatcher.c</a>
+      <ul>
+        <li><a href="#fchsmmdispatcherentry-注册fch-smi中断函数数组-fchsmmdispatchertable">FchSmmDispatcherEntry //注册FCH smi中断函数数组 FchSmmDispatcherTable</a></li>
+      </ul>
+    </li>
+    <li><a href="#edk2mdemodulepkgcorepismmcorepismmcorec">Edk2\MdeModulePkg\Core\PiSmmCore\PiSmmCore.c</a>
+      <ul>
+        <li><a href="#gsmmcoresmst--包含-smihandlerregister-成员">gSmmCoreSmst  //包含 SmiHandlerRegister 成员</a></li>
+        <li><a href="#smmentrypoint-smm模块入口地址-smi中断触发后跑这个">SmmEntryPoint //SMM模块入口地址 smi中断触发后跑这个</a></li>
+      </ul>
+    </li>
+    <li><a href="#edk2mdemodulepkgcorepismmcoresmic">Edk2\MdeModulePkg\Core\PiSmmCore\Smi.c</a>
+      <ul>
+        <li><a href="#smihandlerregister-将--fchsmmdispatchhandler-插入-smientry-smihandlers-节点">SmiHandlerRegister //将  FchSmmDispatchHandler 插入 SmiEntry-&gt;SmiHandlers 节点</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

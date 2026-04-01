@@ -8,14 +8,14 @@ https://github.com/alex-shpak/hugo-book
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;CreateEvent# 创建事件
+<meta name="description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);CreateEvent# 创建事件
 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
 <meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/event/event2/">
   <meta property="og:site_name" content="大象的blog">
   <meta property="og:title" content="event 内核代码解析">
-  <meta property="og:description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;CreateEvent# 创建事件">
+  <meta property="og:description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);CreateEvent# 创建事件">
   <meta property="og:locale" content="zh_cn">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
@@ -24,10 +24,10 @@ https://github.com/alex-shpak/hugo-book
 
 
   <meta itemprop="name" content="event 内核代码解析">
-  <meta itemprop="description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;CreateEvent# 创建事件">
+  <meta itemprop="description" content="事件优先级# #define TPL_APPLICATION 4 #define TPL_CALLBACK 8 #define TPL_NOTIFY 16 #define TPL_HIGH_LEVEL 31事件类型# - #define EVT_TIMER 0x80000000 - #define EVT_RUNTIME 0x40000000 - #define EVT_NOTIFY_WAIT 0x00000100 - #define EVT_NOTIFY_SIGNAL 0x00000200全局变量# LIST_ENTRY gEventQueue[TPL_HIGH_LEVEL &#43; 1]; //各个优先级事件列表 gEventPending //各个优先级事件掩码 gEventSignalQueue //根据事件组触发的事件列表 mEfiTimerList //定时器列表 EFI_TPL gEfiCurrentTpl //当前任务优先级级别，默认是 TPL_APPLICATION EFI_LOCK gEventQueueLock //事件锁 typedef struct { EFI_TPL Tpl; //锁自身的TPL默认值是 TPL_HIGH_LEVEL EFI_TPL OwnerTpl; //TPL_APPLICATION EFI_LOCK_STATE Lock; //EfiLockReleased } EFI_LOCK; 事件对象数据结构# UINTN Signature; UINT32 Type; UINT32 SignalCount; //表示事件是否处于触发状态，通常只有0和1两个值。 /// /// Entry if the event is registered to be signalled /// LIST_ENTRY SignalLink; //用于将事件挂入 全局事件队列 gEventQueue[Priority] 的节点。 /// /// Notification information for this event /// EFI_TPL NotifyTpl; EFI_EVENT_NOTIFY NotifyFunction; VOID *NotifyContext; EFI_GUID EventGroup; //时间组 LIST_ENTRY NotifyLink; //用于将事件挂入 事件组等待队列 或 定时器队列？ UINT8 ExFlag; /// /// A list of all runtime events /// EFI_RUNTIME_EVENT_ENTRY RuntimeData; TIMER_EVENT_INFO Timer;典型使用# Status = gBS-&gt;CreateEvent ( EVT_NOTIFY_SIGNAL, ////CoreSignalEvent触发 TPL_CALLBACK, SctBdsBootFailedCallback, NULL, &amp;SctBdsBootFailedEvent); Status = gBS-&gt;RegisterProtocolNotify ( &amp;gSctBdsBootFailedProtocolGuid, //GUID被安装时内部会调用 CoreSignalEvent 触发 事件 SctBdsBootFailedEvent, &amp;SctBdsBootFailedEventReg);CreateEvent# 创建事件">
   <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="wordCount" content="621">
+  <meta itemprop="wordCount" content="646">
 
 <title>event 内核代码解析 | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
@@ -37,7 +37,7 @@ https://github.com/alex-shpak/hugo-book
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.aab81a5971585c51968b81af3fb4039ee9110e216f84a8d97663f3ef5dfe88bf.js" integrity="sha256-qrgaWXFYXFGWi4GvP7QDnukRDiFvhKjZdmPz713&#43;iL8=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.187e4c88bd41347ea435855c3c0346ae636a85ddb928a5f22f58340e2822e40d.js" integrity="sha256-GH5MiL1BNH6kNYVcPANGrmNqhd25KKXyL1g0Digi5A0=" crossorigin="anonymous"></script>
 
 
 
@@ -135,6 +135,7 @@ https://github.com/alex-shpak/hugo-book
         <li><a href="#事件类型">事件类型</a></li>
         <li><a href="#全局变量">全局变量</a></li>
         <li><a href="#事件对象数据结构">事件对象数据结构</a></li>
+        <li><a href="#典型使用">典型使用</a></li>
         <li><a href="#createevent">CreateEvent</a></li>
         <li><a href="#signalevent">SignalEvent</a></li>
         <li><a href="#checkevent">CheckEvent</a></li>
@@ -212,7 +213,18 @@ https://github.com/alex-shpak/hugo-book
 </span></span></span><span style="display:flex;"><span>  <span style="color:#75715e">/// A list of all runtime events
 </span></span></span><span style="display:flex;"><span>  <span style="color:#75715e">///
 </span></span></span><span style="display:flex;"><span>  EFI_RUNTIME_EVENT_ENTRY    RuntimeData;
-</span></span><span style="display:flex;"><span>  TIMER_EVENT_INFO           Timer;</span></span></code></pre></div><h2 id="createevent">CreateEvent<a class="anchor" href="#createevent">#</a></h2>
+</span></span><span style="display:flex;"><span>  TIMER_EVENT_INFO           Timer;</span></span></code></pre></div><h2 id="典型使用">典型使用<a class="anchor" href="#%e5%85%b8%e5%9e%8b%e4%bd%bf%e7%94%a8">#</a></h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>Status <span style="color:#f92672">=</span> gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">CreateEvent</span> (
+</span></span><span style="display:flex;"><span>                EVT_NOTIFY_SIGNAL, <span style="color:#75715e">////CoreSignalEvent触发
+</span></span></span><span style="display:flex;"><span>                TPL_CALLBACK,
+</span></span><span style="display:flex;"><span>                SctBdsBootFailedCallback,
+</span></span><span style="display:flex;"><span>                NULL,
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">&amp;</span>SctBdsBootFailedEvent);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Status <span style="color:#f92672">=</span> gBS<span style="color:#f92672">-&gt;</span><span style="color:#a6e22e">RegisterProtocolNotify</span> (
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">&amp;</span>gSctBdsBootFailedProtocolGuid, <span style="color:#75715e">//GUID被安装时内部会调用 CoreSignalEvent 触发 事件
+</span></span></span><span style="display:flex;"><span>                SctBdsBootFailedEvent,
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">&amp;</span>SctBdsBootFailedEventReg);</span></span></code></pre></div><h2 id="createevent">CreateEvent<a class="anchor" href="#createevent">#</a></h2>
 <blockquote class='book-hint '>
 <p>创建事件</p>
 </blockquote><ul>
@@ -273,7 +285,7 @@ https://github.com/alex-shpak/hugo-book
 <p>对于 EVT_NOTIFY_SIGNAL 类型事件 调用 CoreNotifyEvent</p>
 <ul>
 <li>如果已经存在队列中，则移除排队队列           Event-&gt;NotifyLink</li>
-<li>加入待通知队列         gEventQueue ，通过 SignalLink节点</li>
+<li>加入待通知队列         gEventQueue ，通过 SignalLink 节点</li>
 <li>置为对应的优先级掩码    gEventPending</li>
 </ul>
 </li>
@@ -333,7 +345,7 @@ https://github.com/alex-shpak/hugo-book
 <li>遍历 gEventSignalQueue 中所有事件取出目标GUID一致的事件组 调用 CoreNotifyEvent
 <ul>
 <li>移除排队队列           Event-&gt;NotifyLink</li>
-<li>加入待通知队列         gEventQueue</li>
+<li>加入待通知队列         gEventQueue ,通过 SignalLink 节点</li>
 <li>置为对应的优先级掩码    gEventPending</li>
 </ul>
 </li>
@@ -560,6 +572,7 @@ https://github.com/alex-shpak/hugo-book
         <li><a href="#事件类型">事件类型</a></li>
         <li><a href="#全局变量">全局变量</a></li>
         <li><a href="#事件对象数据结构">事件对象数据结构</a></li>
+        <li><a href="#典型使用">典型使用</a></li>
         <li><a href="#createevent">CreateEvent</a></li>
         <li><a href="#signalevent">SignalEvent</a></li>
         <li><a href="#checkevent">CheckEvent</a></li>
