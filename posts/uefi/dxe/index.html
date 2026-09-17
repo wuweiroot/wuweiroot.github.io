@@ -8,25 +8,25 @@ https://github.com/alex-shpak/hugo-book
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
-DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的 ">
+<meta name="description" content="DXE 阶段的内核实现笔记：Handle 与 Protocol 数据库、DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+UEFI 内核数据结构：Handle 与 Protocol 数据库 DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
 <meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/">
   <meta property="og:site_name" content="大象的blog">
   <meta property="og:title" content="DXE 内核">
-  <meta property="og:description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
-DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
+  <meta property="og:description" content="DXE 阶段的内核实现笔记：Handle 与 Protocol 数据库、DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+UEFI 内核数据结构：Handle 与 Protocol 数据库 DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
   <meta property="og:locale" content="zh_cn">
   <meta property="og:type" content="website">
 
 
   <meta itemprop="name" content="DXE 内核">
-  <meta itemprop="description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
-DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
+  <meta itemprop="description" content="DXE 阶段的内核实现笔记：Handle 与 Protocol 数据库、DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+UEFI 内核数据结构：Handle 与 Protocol 数据库 DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
   <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
-  <meta itemprop="wordCount" content="19">
+  <meta itemprop="wordCount" content="27">
 
 <title>DXE 内核 | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
@@ -36,7 +36,7 @@ DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.8bae7626abe4cb3be2d6bc6cf14b3f290d350230c3a8013269f6332eb1f0685d.js" integrity="sha256-i652Jqvkyzvi1rxs8Us/KQ01AjDDqAEyafYzLrHwaF0=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.42911f67dcee546ed7c237a20ca0663fd5c228ddcb07dc3adb78cb4de3d5d53b.js" integrity="sha256-QpEfZ9zuVG7XwjeiDKBmP9XCKN3LB9w623jLTePV1Ts=" crossorigin="anonymous"></script>
 
 
 <link rel="alternate" type="application/rss+xml" href="https://wuweiroot.github.io/posts/uefi/dxe/index.xml" title="大象的blog" />
@@ -160,6 +160,10 @@ DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什
     
       <li>
         <a href="/posts/uefi/dxe/startimage/">StartImage 与 ConnectController：驱动连接是怎么被触发的</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/dxe/handle/">UEFI 内核数据结构：Handle 与 Protocol 数据库</a>
       </li>
     
   </ul>

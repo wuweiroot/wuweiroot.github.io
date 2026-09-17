@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DXE 内核用三个结构维护&#34;对象—协议&#34;的关系：IHANDLE、PROTOCOL_ENTRY、PROTOCOL_INTERFACE，另外还有两个用于注册的结构。本文按代码整理字段与它们之间的联系（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+EFI_HANDLE 是什么# EFI_HANDLE 就是 IHANDLE *（MdeModulePkg/Core/Dxe/Hand/Handle.h:17）：
+UEFI 用它表示一个&#34;对象&#34;：一个设备控制器（Controller）、一个已加载的镜像（Image）都是 handle； 驱动把自己提供的接口以 Protocol 的形式安装到 handle 上； 内核通过 handle 上的协议找到对应驱动与设备。 三个核心结构# IHANDLE（Handle.h:17-26）# 字段 含义 Signature &#39;hndl&#39;，用于校验（CoreValidateHandle） AllHandles 挂到全局 gHandleList 的链表节点 Protocols 本 handle 上所有 PROTOCOL_INTERFACE 的链表头 LocateRequest 用于按协议遍历 handle 时的游标（配对 LocateHandle 的分批返回） Key 本 handle 最后一次被创建/修改时的 handle database key PROTOCOL_ENTRY（Handle.h:37-47）# 协议数据库中的条目，每个不同的协议 GUID 一条：
+字段 含义 AllEntries 挂到全局 mProtocolDatabase 的链表节点 ProtocolID 协议 GUID Protocols 该协议在所有 handle 上的接口链表（PROTOCOL_INTERFACE.ByProtocol） Notify 为该协议注册的通知处理链表（PROTOCOL_NOTIFY） PROTOCOL_INTERFACE（Handle.h:55-70）# 一个 handle 上安装的一个协议对应一个接口结构：
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/handle/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="UEFI 内核数据结构：Handle 与 Protocol 数据库">
+  <meta property="og:description" content="DXE 内核用三个结构维护&#34;对象—协议&#34;的关系：IHANDLE、PROTOCOL_ENTRY、PROTOCOL_INTERFACE，另外还有两个用于注册的结构。本文按代码整理字段与它们之间的联系（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+EFI_HANDLE 是什么# EFI_HANDLE 就是 IHANDLE *（MdeModulePkg/Core/Dxe/Hand/Handle.h:17）：
+UEFI 用它表示一个&#34;对象&#34;：一个设备控制器（Controller）、一个已加载的镜像（Image）都是 handle； 驱动把自己提供的接口以 Protocol 的形式安装到 handle 上； 内核通过 handle 上的协议找到对应驱动与设备。 三个核心结构# IHANDLE（Handle.h:17-26）# 字段 含义 Signature &#39;hndl&#39;，用于校验（CoreValidateHandle） AllHandles 挂到全局 gHandleList 的链表节点 Protocols 本 handle 上所有 PROTOCOL_INTERFACE 的链表头 LocateRequest 用于按协议遍历 handle 时的游标（配对 LocateHandle 的分批返回） Key 本 handle 最后一次被创建/修改时的 handle database key PROTOCOL_ENTRY（Handle.h:37-47）# 协议数据库中的条目，每个不同的协议 GUID 一条：
+字段 含义 AllEntries 挂到全局 mProtocolDatabase 的链表节点 ProtocolID 协议 GUID Protocols 该协议在所有 handle 上的接口链表（PROTOCOL_INTERFACE.ByProtocol） Notify 为该协议注册的通知处理链表（PROTOCOL_NOTIFY） PROTOCOL_INTERFACE（Handle.h:55-70）# 一个 handle 上安装的一个协议对应一个接口结构：">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-09-17T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-09-17T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="UEFI 内核数据结构：Handle 与 Protocol 数据库">
+  <meta itemprop="description" content="DXE 内核用三个结构维护&#34;对象—协议&#34;的关系：IHANDLE、PROTOCOL_ENTRY、PROTOCOL_INTERFACE，另外还有两个用于注册的结构。本文按代码整理字段与它们之间的联系（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+EFI_HANDLE 是什么# EFI_HANDLE 就是 IHANDLE *（MdeModulePkg/Core/Dxe/Hand/Handle.h:17）：
+UEFI 用它表示一个&#34;对象&#34;：一个设备控制器（Controller）、一个已加载的镜像（Image）都是 handle； 驱动把自己提供的接口以 Protocol 的形式安装到 handle 上； 内核通过 handle 上的协议找到对应驱动与设备。 三个核心结构# IHANDLE（Handle.h:17-26）# 字段 含义 Signature &#39;hndl&#39;，用于校验（CoreValidateHandle） AllHandles 挂到全局 gHandleList 的链表节点 Protocols 本 handle 上所有 PROTOCOL_INTERFACE 的链表头 LocateRequest 用于按协议遍历 handle 时的游标（配对 LocateHandle 的分批返回） Key 本 handle 最后一次被创建/修改时的 handle database key PROTOCOL_ENTRY（Handle.h:37-47）# 协议数据库中的条目，每个不同的协议 GUID 一条：
+字段 含义 AllEntries 挂到全局 mProtocolDatabase 的链表节点 ProtocolID 协议 GUID Protocols 该协议在所有 handle 上的接口链表（PROTOCOL_INTERFACE.ByProtocol） Notify 为该协议注册的通知处理链表（PROTOCOL_NOTIFY） PROTOCOL_INTERFACE（Handle.h:55-70）# 一个 handle 上安装的一个协议对应一个接口结构：">
+  <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="wordCount" content="319">
+
+<title>UEFI 内核数据结构：Handle 与 Protocol 数据库 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/dxe/handle/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.42911f67dcee546ed7c237a20ca0663fd5c228ddcb07dc3adb78cb4de3d5d53b.js" integrity="sha256-QpEfZ9zuVG7XwjeiDKBmP9XCKN3LB9w623jLTePV1Ts=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>UEFI 内核数据结构：Handle 与 Protocol 数据库</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#efi_handle-是什么">EFI_HANDLE 是什么</a></li>
+    <li><a href="#三个核心结构">三个核心结构</a>
+      <ul>
+        <li><a href="#ihandlehandleh17-26">IHANDLE（Handle.h:17-26）</a></li>
+        <li><a href="#protocol_entryhandleh37-47">PROTOCOL_ENTRY（Handle.h:37-47）</a></li>
+        <li><a href="#protocol_interfacehandleh55-70">PROTOCOL_INTERFACE（Handle.h:55-70）</a></li>
+      </ul>
+    </li>
+    <li><a href="#两个注册类结构">两个注册类结构</a>
+      <ul>
+        <li><a href="#open_protocol_datahandleh74-83">OPEN_PROTOCOL_DATA（Handle.h:74-83）</a></li>
+        <li><a href="#protocol_notifyhandleh90-99">PROTOCOL_NOTIFY（Handle.h:90-99）</a></li>
+      </ul>
+    </li>
+    <li><a href="#三者关系">三者关系</a></li>
+    <li><a href="#三条关系精确表述">三条关系（精确表述）</a></li>
+    <li><a href="#查找路径">查找路径</a></li>
+    <li><a href="#安装打开卸载">安装、打开、卸载</a></li>
+    <li><a href="#全局变量与锁">全局变量与锁</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>UEFI 内核数据结构：Handle 与 Protocol 数据库</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>September 17, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>DXE 内核用三个结构维护&quot;对象—协议&quot;的关系：<code>IHANDLE</code>、<code>PROTOCOL_ENTRY</code>、<code>PROTOCOL_INTERFACE</code>，另外还有两个用于注册的结构。本文按代码整理字段与它们之间的联系（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。</p>
+<h1 id="efi_handle-是什么">EFI_HANDLE 是什么<a class="anchor" href="#efi_handle-%e6%98%af%e4%bb%80%e4%b9%88">#</a></h1>
+<p><code>EFI_HANDLE</code> 就是 <code>IHANDLE *</code>（<code>MdeModulePkg/Core/Dxe/Hand/Handle.h:17</code>）：</p>
+<ul>
+<li>UEFI 用它表示一个&quot;对象&quot;：一个设备控制器（Controller）、一个已加载的镜像（Image）都是 handle；</li>
+<li>驱动把自己提供的接口以 Protocol 的形式安装到 handle 上；</li>
+<li>内核通过 handle 上的协议找到对应驱动与设备。</li>
+</ul>
+<h1 id="三个核心结构">三个核心结构<a class="anchor" href="#%e4%b8%89%e4%b8%aa%e6%a0%b8%e5%bf%83%e7%bb%93%e6%9e%84">#</a></h1>
+<h2 id="ihandlehandleh17-26">IHANDLE（Handle.h:17-26）<a class="anchor" href="#ihandlehandleh17-26">#</a></h2>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>Signature</code></td>
+          <td><code>'hndl'</code>，用于校验（<code>CoreValidateHandle</code>）</td>
+      </tr>
+      <tr>
+          <td><code>AllHandles</code></td>
+          <td>挂到全局 <code>gHandleList</code> 的链表节点</td>
+      </tr>
+      <tr>
+          <td><code>Protocols</code></td>
+          <td>本 handle 上所有 <code>PROTOCOL_INTERFACE</code> 的链表头</td>
+      </tr>
+      <tr>
+          <td><code>LocateRequest</code></td>
+          <td>用于按协议遍历 handle 时的游标（配对 <code>LocateHandle</code> 的分批返回）</td>
+      </tr>
+      <tr>
+          <td><code>Key</code></td>
+          <td>本 handle 最后一次被创建/修改时的 handle database key</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="protocol_entryhandleh37-47">PROTOCOL_ENTRY（Handle.h:37-47）<a class="anchor" href="#protocol_entryhandleh37-47">#</a></h2>
+<p>协议数据库中的条目，<strong>每个不同的协议 GUID 一条</strong>：</p>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>AllEntries</code></td>
+          <td>挂到全局 <code>mProtocolDatabase</code> 的链表节点</td>
+      </tr>
+      <tr>
+          <td><code>ProtocolID</code></td>
+          <td>协议 GUID</td>
+      </tr>
+      <tr>
+          <td><code>Protocols</code></td>
+          <td>该协议在所有 handle 上的接口链表（<code>PROTOCOL_INTERFACE.ByProtocol</code>）</td>
+      </tr>
+      <tr>
+          <td><code>Notify</code></td>
+          <td>为该协议注册的通知处理链表（<code>PROTOCOL_NOTIFY</code>）</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="protocol_interfacehandleh55-70">PROTOCOL_INTERFACE（Handle.h:55-70）<a class="anchor" href="#protocol_interfacehandleh55-70">#</a></h2>
+<p><strong>一个 handle 上安装的一个协议</strong>对应一个接口结构：</p>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>Link</code></td>
+          <td>挂到 <code>IHANDLE.Protocols</code></td>
+      </tr>
+      <tr>
+          <td><code>Handle</code></td>
+          <td>反向指针，指回所属 handle</td>
+      </tr>
+      <tr>
+          <td><code>ByProtocol</code></td>
+          <td>挂到 <code>PROTOCOL_ENTRY.Protocols</code></td>
+      </tr>
+      <tr>
+          <td><code>Protocol</code></td>
+          <td>指向所属 <code>PROTOCOL_ENTRY</code></td>
+      </tr>
+      <tr>
+          <td><code>Interface</code></td>
+          <td>协议接口指针（真正的服务表/结构体地址）</td>
+      </tr>
+      <tr>
+          <td><code>OpenList</code> / <code>OpenListCount</code></td>
+          <td>被打开的情况（<code>OPEN_PROTOCOL_DATA</code> 链表）与打开计数</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="两个注册类结构">两个注册类结构<a class="anchor" href="#%e4%b8%a4%e4%b8%aa%e6%b3%a8%e5%86%8c%e7%b1%bb%e7%bb%93%e6%9e%84">#</a></h1>
+<h2 id="open_protocol_datahandleh74-83">OPEN_PROTOCOL_DATA（Handle.h:74-83）<a class="anchor" href="#open_protocol_datahandleh74-83">#</a></h2>
+<p>记录&quot;谁以什么方式打开了这个接口&quot;：</p>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>AgentHandle</code> / <code>ControllerHandle</code></td>
+          <td>打开者与被打开的控制器</td>
+      </tr>
+      <tr>
+          <td><code>Attributes</code></td>
+          <td>打开方式（见下表）</td>
+      </tr>
+      <tr>
+          <td><code>OpenCount</code></td>
+          <td>打开次数</td>
+      </tr>
+  </tbody>
+</table>
+<p>打开方式取值（<code>MdePkg/Include/Uefi/UefiSpec.h:1295-1300</code>）：</p>
+<table>
+  <thead>
+      <tr>
+          <th>值</th>
+          <th>属性</th>
+          <th>典型用途</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>0x01</td>
+          <td><code>EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL</code></td>
+          <td>HandleProtocol() 打开</td>
+      </tr>
+      <tr>
+          <td>0x02</td>
+          <td><code>EFI_OPEN_PROTOCOL_GET_PROTOCOL</code></td>
+          <td>驱动内部获取接口</td>
+      </tr>
+      <tr>
+          <td>0x04</td>
+          <td><code>EFI_OPEN_PROTOCOL_TEST_PROTOCOL</code></td>
+          <td>仅测试是否存在</td>
+      </tr>
+      <tr>
+          <td>0x08</td>
+          <td><code>EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER</code></td>
+          <td>父控制器为子控制器打开</td>
+      </tr>
+      <tr>
+          <td>0x10</td>
+          <td><code>EFI_OPEN_PROTOCOL_BY_DRIVER</code></td>
+          <td>驱动声明占用该控制器</td>
+      </tr>
+      <tr>
+          <td>0x20</td>
+          <td><code>EFI_OPEN_PROTOCOL_EXCLUSIVE</code></td>
+          <td>独占（如总线驱动枚举期间）</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="protocol_notifyhandleh90-99">PROTOCOL_NOTIFY（Handle.h:90-99）<a class="anchor" href="#protocol_notifyhandleh90-99">#</a></h2>
+<p>协议通知注册：<code>Protocol</code>（目标协议）、<code>Event</code>（要触发的通知事件）、<code>Position</code>（上次通知到的位置，保证通知从上次之后继续）。</p>
+<h1 id="三者关系">三者关系<a class="anchor" href="#%e4%b8%89%e8%80%85%e5%85%b3%e7%b3%bb">#</a></h1>
+<pre tabindex="0"><code>mProtocolDatabase  (LIST_ENTRY)          gHandleList  (LIST_ENTRY)
+      │                                        │
+      ▼                                        ▼
+PROTOCOL_ENTRY (ProtocolID = GUID)         IHANDLE  (Signature=&#39;hndl&#39;)
+      ├── Protocols ──────┐                    ├── Protocols ──────┐
+      └── Notify ──► PROTOCOL_NOTIFY           │                   │
+                                               ▼                   ▼
+                        PROTOCOL_INTERFACE ◄───┴───────────────────┘
+                          ├── Handle    → IHANDLE
+                          ├── Protocol  → PROTOCOL_ENTRY
+                          ├── Interface → 接口指针
+                          └── OpenList  → OPEN_PROTOCOL_DATA[]</code></pre><p>一个接口对象<strong>同时挂在两条链上</strong>：handle 侧的 <code>Link</code>、协议侧的 <code>ByProtocol</code>。</p>
+<h1 id="三条关系精确表述">三条关系（精确表述）<a class="anchor" href="#%e4%b8%89%e6%9d%a1%e5%85%b3%e7%b3%bb%e7%b2%be%e7%a1%ae%e8%a1%a8%e8%bf%b0">#</a></h1>
+<ol>
+<li>一个 handle 可以挂多个协议接口（<code>IHANDLE.Protocols</code>）——例如一个 PCIe 设备同时提供 DevicePath 与 PciIo；</li>
+<li>一个协议 GUID 可以出现在多个 handle 上（<code>PROTOCOL_ENTRY.Protocols</code>）——例如 PciIo 安装到不同的 PCIe 设备；</li>
+<li><strong>同一个 handle 上的同一个 GUID 只对应一个 <code>PROTOCOL_INTERFACE</code></strong>，因此接口数量是&quot;各 handle 上实际安装的协议数之和&quot;，而不是简单的&quot;设备数 × 协议数&quot;（不同设备安装的协议集合并不相同）。</li>
+</ol>
+<h1 id="查找路径">查找路径<a class="anchor" href="#%e6%9f%a5%e6%89%be%e8%b7%af%e5%be%84">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>接口</th>
+          <th>位置</th>
+          <th>做法</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>CoreLocateProtocol</code></td>
+          <td><code>Hand/Locate.c:600</code></td>
+          <td>由 GUID 找到 <code>PROTOCOL_ENTRY</code>，遍历其 <code>Protocols</code>，返回第一个有效接口</td>
+      </tr>
+      <tr>
+          <td><code>CoreLocateHandle</code></td>
+          <td><code>Hand/Locate.c:294</code></td>
+          <td>遍历 <code>gHandleList</code>，按 SearchType（AllHandles / ByRegisterNotify / ByProtocol）筛选</td>
+      </tr>
+      <tr>
+          <td><code>CoreLocateHandleBuffer</code></td>
+          <td><code>Hand/Locate.c:692</code></td>
+          <td><code>LocateHandle</code> 的缓冲版本（分批遍历后一次性返回句柄数组）</td>
+      </tr>
+      <tr>
+          <td><code>CoreGetNextLocateByProtocol</code></td>
+          <td><code>Hand/Locate.c:82</code>、<code>:409</code></td>
+          <td>按协议继续找下一个 handle；配合 <code>IHANDLE.LocateRequest</code> 记录游标</td>
+      </tr>
+      <tr>
+          <td><code>CoreValidateHandle</code></td>
+          <td><code>Hand/Handle.h:241</code></td>
+          <td>校验 <code>Signature</code>，判断句柄是否有效</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="安装打开卸载">安装、打开、卸载<a class="anchor" href="#%e5%ae%89%e8%a3%85%e6%89%93%e5%bc%80%e5%8d%b8%e8%bd%bd">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>操作</th>
+          <th>位置</th>
+          <th>要点</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>安装协议</td>
+          <td><code>CoreInstallProtocolInterface</code>（<code>Hand/Handle.c:305</code>）</td>
+          <td>找到/创建 <code>PROTOCOL_ENTRY</code>；建立 <code>PROTOCOL_INTERFACE</code> 并挂两条链；<code>gHandleDatabaseKey</code> 自增并更新 <code>Handle-&gt;Key</code>；触发协议通知</td>
+      </tr>
+      <tr>
+          <td>打开协议</td>
+          <td><code>CoreOpenProtocol</code>（<code>Handle.c:986</code>）</td>
+          <td>维护 <code>OPEN_PROTOCOL_DATA</code> 与 <code>OpenListCount</code></td>
+      </tr>
+      <tr>
+          <td>关闭协议</td>
+          <td><code>CoreCloseProtocol</code>（<code>Handle.c:1253</code>）</td>
+          <td>递减打开计数，必要时移除记录</td>
+      </tr>
+      <tr>
+          <td>卸载协议</td>
+          <td><code>CoreUninstallProtocolInterface</code>（<code>Handle.c:715</code>）</td>
+          <td>先断开正在使用该接口的驱动（<code>CoreDisconnectControllersUsingProtocolInterface</code>，<code>Handle.h:207</code>）；失败则重新连接全部驱动（<code>Handle.c:690-695</code>）</td>
+      </tr>
+  </tbody>
+</table>
+<p><code>Handle-&gt;Key</code> 与 <code>gHandleDatabaseKey</code> 的配合，是 <code>StartImage</code> 收尾时&quot;连接本次新建/修改的 handle&quot;的依据，详见 <a href="/posts/uefi/dxe/startimage/">StartImage 与 ConnectController</a>。</p>
+<h1 id="全局变量与锁">全局变量与锁<a class="anchor" href="#%e5%85%a8%e5%b1%80%e5%8f%98%e9%87%8f%e4%b8%8e%e9%94%81">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>名称</th>
+          <th>位置</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>mProtocolDatabase</code></td>
+          <td><code>Hand/Handle.c:22</code></td>
+          <td>协议数据库（<code>PROTOCOL_ENTRY</code> 链表）</td>
+      </tr>
+      <tr>
+          <td><code>gHandleList</code></td>
+          <td><code>Hand/Handle.c:23</code></td>
+          <td>句柄数据库（<code>IHANDLE</code> 链表）</td>
+      </tr>
+      <tr>
+          <td><code>gHandleDatabaseKey</code></td>
+          <td><code>Hand/Handle.c:25</code></td>
+          <td>handle database key 计数器</td>
+      </tr>
+      <tr>
+          <td><code>gProtocolDatabaseLock</code></td>
+          <td>声明于 <code>Hand/Handle.h:248</code></td>
+          <td>访问上述数据库时持有；由 <code>CoreAcquireProtocolLock</code> / <code>CoreReleaseProtocolLock</code>（<code>Handle.h:217</code> / <code>:226</code>）管理</td>
+      </tr>
+  </tbody>
+</table>
+<p>访问这两个数据库的代码必须持锁；<code>CoreFindProtocolEntry</code> 等函数在注释里明确要求&quot;锁已持有&quot;。</p>
+<h1 id="参考资料">参考资料<a class="anchor" href="#%e5%8f%82%e8%80%83%e8%b5%84%e6%96%99">#</a></h1>
+<ul>
+<li>UEFI Specification：Handle Database、Protocol Handler Services、OpenProtocol 属性</li>
+<li>EDK II：<code>MdeModulePkg/Core/Dxe/Hand/Handle.h</code>、<code>Hand/Handle.c</code>、<code>Hand/Locate.c</code>、<code>Hand/DriverSupport.c</code>、<code>Hand/Notify.c</code></li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/dxe/startimage/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>StartImage 与 ConnectController：驱动连接是怎么被触发的</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#efi_handle-是什么">EFI_HANDLE 是什么</a></li>
+    <li><a href="#三个核心结构">三个核心结构</a>
+      <ul>
+        <li><a href="#ihandlehandleh17-26">IHANDLE（Handle.h:17-26）</a></li>
+        <li><a href="#protocol_entryhandleh37-47">PROTOCOL_ENTRY（Handle.h:37-47）</a></li>
+        <li><a href="#protocol_interfacehandleh55-70">PROTOCOL_INTERFACE（Handle.h:55-70）</a></li>
+      </ul>
+    </li>
+    <li><a href="#两个注册类结构">两个注册类结构</a>
+      <ul>
+        <li><a href="#open_protocol_datahandleh74-83">OPEN_PROTOCOL_DATA（Handle.h:74-83）</a></li>
+        <li><a href="#protocol_notifyhandleh90-99">PROTOCOL_NOTIFY（Handle.h:90-99）</a></li>
+      </ul>
+    </li>
+    <li><a href="#三者关系">三者关系</a></li>
+    <li><a href="#三条关系精确表述">三条关系（精确表述）</a></li>
+    <li><a href="#查找路径">查找路径</a></li>
+    <li><a href="#安装打开卸载">安装、打开、卸载</a></li>
+    <li><a href="#全局变量与锁">全局变量与锁</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
