@@ -8,24 +8,30 @@ https://github.com/alex-shpak/hugo-book
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="">
+<meta name="description" content="服务器 BIOS 的 RAS 相关笔记：错误源与 APEI 表、CPER 字段结构、SMM 侧处理与交付、到 BMC 的上报、阈值与限流。
+RAS 模块总结：错误源、APEI 表与通知路径 CPER 与 APEI 结构：字段级说明 RAS 与 SMM：错误记录在固件侧的处理与交付 错误记录到 BMC：CPER 与 IPMI SEL 的映射 可纠正错误的阈值与限流：工程做法 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
-<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/c%E8%AF%AD%E8%A8%80/">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/ras/">
   <meta property="og:site_name" content="大象的blog">
-  <meta property="og:title" content="C语言 技术笔记列表">
+  <meta property="og:title" content="RAS">
+  <meta property="og:description" content="服务器 BIOS 的 RAS 相关笔记：错误源与 APEI 表、CPER 字段结构、SMM 侧处理与交付、到 BMC 的上报、阈值与限流。
+RAS 模块总结：错误源、APEI 表与通知路径 CPER 与 APEI 结构：字段级说明 RAS 与 SMM：错误记录在固件侧的处理与交付 错误记录到 BMC：CPER 与 IPMI SEL 的映射 可纠正错误的阈值与限流：工程做法">
   <meta property="og:locale" content="zh_cn">
   <meta property="og:type" content="website">
 
 
-  <meta itemprop="name" content="C语言 技术笔记列表">
-  <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
+  <meta itemprop="name" content="RAS">
+  <meta itemprop="description" content="服务器 BIOS 的 RAS 相关笔记：错误源与 APEI 表、CPER 字段结构、SMM 侧处理与交付、到 BMC 的上报、阈值与限流。
+RAS 模块总结：错误源、APEI 表与通知路径 CPER 与 APEI 结构：字段级说明 RAS 与 SMM：错误记录在固件侧的处理与交付 错误记录到 BMC：CPER 与 IPMI SEL 的映射 可纠正错误的阈值与限流：工程做法">
+  <meta itemprop="datePublished" content="2026-09-16T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-16T00:00:00+00:00">
+  <meta itemprop="wordCount" content="28">
 
-<title>C语言 技术笔记列表 | 大象的blog</title>
+<title>RAS | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
 <link rel="manifest" href="/manifest.json">
-<link rel="canonical" href="https://wuweiroot.github.io/posts/c%E8%AF%AD%E8%A8%80/">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/ras/">
 <link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
 
 
@@ -33,7 +39,7 @@ https://github.com/alex-shpak/hugo-book
   <script defer src="/en.search.min.d80b1e9ef774d3a3fbb3d3fd299b1811fd8081c3c3e9e68e8d0af3be93585ba4.js" integrity="sha256-2Asenvd006P7s9P9KZsYEf2AgcPD6eaOjQrzvpNYW6Q=" crossorigin="anonymous"></script>
 
 
-<link rel="alternate" type="application/rss+xml" href="https://wuweiroot.github.io/posts/c%E8%AF%AD%E8%A8%80/index.xml" title="大象的blog" />
+<link rel="alternate" type="application/rss+xml" href="https://wuweiroot.github.io/posts/uefi/ras/index.xml" title="大象的blog" />
 
   
  <link rel="stylesheet" href="/css/custom.css">
@@ -107,7 +113,7 @@ https://github.com/alex-shpak/hugo-book
     <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
   </label>
 
-  <h3>C语言 技术笔记列表</h3>
+  <h3>RAS</h3>
 
   <label for="toc-control">
     
@@ -141,11 +147,27 @@ https://github.com/alex-shpak/hugo-book
 </style>
 
 <main class="post-list">   
-  <h1>C语言 技术笔记列表</h1>
+  <h1>RAS</h1>
   <ul>
     
       <li>
-        <a href="/posts/c%E8%AF%AD%E8%A8%80/c-%E8%AF%AD%E8%A8%80/">C 语言</a>
+        <a href="/posts/uefi/ras/cper/">CPER 与 APEI 结构：字段级说明</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/ras/smm/">RAS 与 SMM：错误记录在固件侧的处理与交付</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/ras/apei/">RAS 模块总结：错误源、APEI 表与通知路径</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/ras/threshold/">可纠正错误的阈值与限流：工程做法</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/ras/sel/">错误记录到 BMC：CPER 与 IPMI SEL 的映射</a>
       </li>
     
   </ul>
@@ -175,6 +197,10 @@ https://github.com/alex-shpak/hugo-book
 
  
         
+  
+  <div class="book-comments">
+
+</div>
   
  
         

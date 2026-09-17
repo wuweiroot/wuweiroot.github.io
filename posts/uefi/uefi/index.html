@@ -42,7 +42,7 @@ X86 BIOS启动模式# 先了解 X86 架构的工作模式， X86 有很多种工
 SEC阶段# 接收和处理系统上电或者重启信号 RestVector 的初始化，以及异常向量的初始化 SecCoreStartupWithStack 初始化 IDT 初始化临时存储区域 cache作为内存 传递系统参数给下一个阶段 从实模式到保护模式，从32位模式到64位模式 PEI阶段# PEI内核调度PEIM CPU初始化 内存初始化 芯片初始化 CPU 工作模式的切换 初始化内存 DXE阶段# 初始化控制台设备（） 加载必要的设备驱动 初始化 CPU 的 GDT。 初始化 CPU 的 IDT. 根据系统设置加载和执行启动项 BDS阶段# 初始化控制台设备（输出输出设备） 加载必要的设备驱动 根据系统设置加载和执行启动项 TSL阶段# 是OS loder加载的第一阶段 启动服务进入ExitBootServices服务调用后进入 Run time阶段 RT阶段# 系统控制器转移给OS Loder UEFI DXE内核# edk2-master\MdeModulePkg\Core\Dxe\Hand\Handle.h# UEFI 内核数据结构">
   <meta itemprop="datePublished" content="2026-03-13T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-03-13T00:00:00+00:00">
-  <meta itemprop="wordCount" content="178">
+  <meta itemprop="wordCount" content="184">
 
 <title>uefi | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
@@ -52,7 +52,7 @@ SEC阶段# 接收和处理系统上电或者重启信号 RestVector 的初始化
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.10d26795e4d4eeef573336235f1d78de521288087cada8ae2ce7020de2dc5181.js" integrity="sha256-ENJnleTU7u9XMzYjXx143lISiAh8raiuLOcCDeLcUYE=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.d80b1e9ef774d3a3fbb3d3fd299b1811fd8081c3c3e9e68e8d0af3be93585ba4.js" integrity="sha256-2Asenvd006P7s9P9KZsYEf2AgcPD6eaOjQrzvpNYW6Q=" crossorigin="anonymous"></script>
 
 
 
@@ -312,12 +312,12 @@ edk pci驱动初始化和加载流程整理</p>
 <ul>
 <li>以XXX.Pkg命名的文件夹</li>
 <li>一组模块和平台描述文件(dsc文件) 和包声明文件(dec文件)的集合</li>
-<li>dsc文件用来指导各个模块的执行顺序。</li>
+<li>fdf文件用来指导各个模块的执行顺序。</li>
 </ul>
 <h2 id="module">Module<a class="anchor" href="#module">#</a></h2>
 <ul>
 <li>EDK2 每个工程模块由.inf文件和源文件组成</li>
-<li>inf文件类似Linux的Makefile文件，用于指导源文件编译。</li>
+<li>inf 是 EDK II 模块定义文件（Module Information File），它告诉构建系统：</li>
 </ul>
 <h1 id="uefi-模块类型">UEFI 模块类型<a class="anchor" href="#uefi-%e6%a8%a1%e5%9d%97%e7%b1%bb%e5%9e%8b">#</a></h1>
 <ul>
