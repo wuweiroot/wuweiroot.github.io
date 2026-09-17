@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="StartImage 表面上只负责调用镜像入口点，但在 DXE 里它还承担一件事：按规范把镜像创建或修改过的 handle 连接起来。这也是日志里常见&#34;Dispatcher 里跑着 Driver Binding 的 Supported()“的原因。
+现象# Dispatcher 启动某个驱动时，日志里出现总线绑定驱动的 Supported() / Start()。触发点并不在 Dispatcher，而在 StartImage 的收尾。
+StartImage 的骨架# MdeModulePkg/Core/Dxe/Image/Image.c:1764：
+记录当前 handle database key； 调用镜像入口点； 入口点返回后，若镜像不是 EFI_APPLICATION，按规范连接新建 / 被修改的 handle（:1959-1961）。 规范要求# Image.c:1950-1957 的注释引用了 UEFI 规范中 StartImage() 的 EFI 1.10 扩展：
+为兼容按 EFI 1.02 规范编写的驱动（它们不会在入口点里自己连接设备），StartImage() 必须在每个镜像启动前后监视 handle 数据库；只要有 handle 被创建或修改，就必须在返回前对这些 handle 以 Recursive = TRUE 调用 ConnectController()。
+两个实现细节：
+只对非 EFI_APPLICATION 类型生效（:1959）； 连接对象是&#34;本次运行期间 Key 发生变化&#34;的 handle，而不是全部 handle。 handle database key# 每次安装协议接口，gHandleDatabaseKey 自增，并把对应 handle 的 Key 更新为新值（Hand/Notify.c:249-250）； 因此&#34;镜像启动前的 Key&#34;是一条分界线：Key 更大的 handle 就是本次新建或被修改的。 CoreConnectHandlesByKey# Hand/Handle.c:1541：
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/startimage/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="StartImage 与 ConnectController：驱动连接是怎么被触发的">
+  <meta property="og:description" content="StartImage 表面上只负责调用镜像入口点，但在 DXE 里它还承担一件事：按规范把镜像创建或修改过的 handle 连接起来。这也是日志里常见&#34;Dispatcher 里跑着 Driver Binding 的 Supported()“的原因。
+现象# Dispatcher 启动某个驱动时，日志里出现总线绑定驱动的 Supported() / Start()。触发点并不在 Dispatcher，而在 StartImage 的收尾。
+StartImage 的骨架# MdeModulePkg/Core/Dxe/Image/Image.c:1764：
+记录当前 handle database key； 调用镜像入口点； 入口点返回后，若镜像不是 EFI_APPLICATION，按规范连接新建 / 被修改的 handle（:1959-1961）。 规范要求# Image.c:1950-1957 的注释引用了 UEFI 规范中 StartImage() 的 EFI 1.10 扩展：
+为兼容按 EFI 1.02 规范编写的驱动（它们不会在入口点里自己连接设备），StartImage() 必须在每个镜像启动前后监视 handle 数据库；只要有 handle 被创建或修改，就必须在返回前对这些 handle 以 Recursive = TRUE 调用 ConnectController()。
+两个实现细节：
+只对非 EFI_APPLICATION 类型生效（:1959）； 连接对象是&#34;本次运行期间 Key 发生变化&#34;的 handle，而不是全部 handle。 handle database key# 每次安装协议接口，gHandleDatabaseKey 自增，并把对应 handle 的 Key 更新为新值（Hand/Notify.c:249-250）； 因此&#34;镜像启动前的 Key&#34;是一条分界线：Key 更大的 handle 就是本次新建或被修改的。 CoreConnectHandlesByKey# Hand/Handle.c:1541：">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-09-17T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-09-17T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="StartImage 与 ConnectController：驱动连接是怎么被触发的">
+  <meta itemprop="description" content="StartImage 表面上只负责调用镜像入口点，但在 DXE 里它还承担一件事：按规范把镜像创建或修改过的 handle 连接起来。这也是日志里常见&#34;Dispatcher 里跑着 Driver Binding 的 Supported()“的原因。
+现象# Dispatcher 启动某个驱动时，日志里出现总线绑定驱动的 Supported() / Start()。触发点并不在 Dispatcher，而在 StartImage 的收尾。
+StartImage 的骨架# MdeModulePkg/Core/Dxe/Image/Image.c:1764：
+记录当前 handle database key； 调用镜像入口点； 入口点返回后，若镜像不是 EFI_APPLICATION，按规范连接新建 / 被修改的 handle（:1959-1961）。 规范要求# Image.c:1950-1957 的注释引用了 UEFI 规范中 StartImage() 的 EFI 1.10 扩展：
+为兼容按 EFI 1.02 规范编写的驱动（它们不会在入口点里自己连接设备），StartImage() 必须在每个镜像启动前后监视 handle 数据库；只要有 handle 被创建或修改，就必须在返回前对这些 handle 以 Recursive = TRUE 调用 ConnectController()。
+两个实现细节：
+只对非 EFI_APPLICATION 类型生效（:1959）； 连接对象是&#34;本次运行期间 Key 发生变化&#34;的 handle，而不是全部 handle。 handle database key# 每次安装协议接口，gHandleDatabaseKey 自增，并把对应 handle 的 Key 更新为新值（Hand/Notify.c:249-250）； 因此&#34;镜像启动前的 Key&#34;是一条分界线：Key 更大的 handle 就是本次新建或被修改的。 CoreConnectHandlesByKey# Hand/Handle.c:1541：">
+  <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="wordCount" content="193">
+
+<title>StartImage 与 ConnectController：驱动连接是怎么被触发的 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/dxe/startimage/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.8bae7626abe4cb3be2d6bc6cf14b3f290d350230c3a8013269f6332eb1f0685d.js" integrity="sha256-i652Jqvkyzvi1rxs8Us/KQ01AjDDqAEyafYzLrHwaF0=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>StartImage 与 ConnectController：驱动连接是怎么被触发的</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#现象">现象</a></li>
+    <li><a href="#startimage-的骨架">StartImage 的骨架</a></li>
+    <li><a href="#规范要求">规范要求</a></li>
+    <li><a href="#handle-database-key">handle database key</a></li>
+    <li><a href="#coreconnecthandlesbykey">CoreConnectHandlesByKey</a></li>
+    <li><a href="#coreconnectcontroller-做什么">CoreConnectController 做什么</a></li>
+    <li><a href="#完整链路">完整链路</a></li>
+    <li><a href="#实用结论">实用结论</a></li>
+    <li><a href="#排查提示">排查提示</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>StartImage 与 ConnectController：驱动连接是怎么被触发的</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>September 17, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p><code>StartImage</code> 表面上只负责调用镜像入口点，但在 DXE 里它还承担一件事：按规范把镜像创建或修改过的 handle 连接起来。这也是日志里常见&quot;Dispatcher 里跑着 Driver Binding 的 <code>Supported()</code>&ldquo;的原因。</p>
+<h1 id="现象">现象<a class="anchor" href="#%e7%8e%b0%e8%b1%a1">#</a></h1>
+<p>Dispatcher 启动某个驱动时，日志里出现总线绑定驱动的 <code>Supported()</code> / <code>Start()</code>。触发点并不在 Dispatcher，而在 <code>StartImage</code> 的收尾。</p>
+<h1 id="startimage-的骨架">StartImage 的骨架<a class="anchor" href="#startimage-%e7%9a%84%e9%aa%a8%e6%9e%b6">#</a></h1>
+<p><code>MdeModulePkg/Core/Dxe/Image/Image.c:1764</code>：</p>
+<ol>
+<li>记录当前 handle database key；</li>
+<li>调用镜像入口点；</li>
+<li>入口点返回后，若镜像不是 <code>EFI_APPLICATION</code>，按规范连接新建 / 被修改的 handle（<code>:1959-1961</code>）。</li>
+</ol>
+<h1 id="规范要求">规范要求<a class="anchor" href="#%e8%a7%84%e8%8c%83%e8%a6%81%e6%b1%82">#</a></h1>
+<p><code>Image.c:1950-1957</code> 的注释引用了 UEFI 规范中 <code>StartImage()</code> 的 <strong>EFI 1.10 扩展</strong>：</p>
+<blockquote class='book-hint '>
+<p>为兼容按 EFI 1.02 规范编写的驱动（它们不会在入口点里自己连接设备），<code>StartImage()</code> 必须在每个镜像启动前后监视 handle 数据库；只要有 handle 被创建或修改，就必须在返回前对这些 handle 以 <code>Recursive = TRUE</code> 调用 <code>ConnectController()</code>。</p>
+</blockquote><p>两个实现细节：</p>
+<ul>
+<li>只对<strong>非</strong> <code>EFI_APPLICATION</code> 类型生效（<code>:1959</code>）；</li>
+<li>连接对象是&quot;本次运行期间 Key 发生变化&quot;的 handle，而不是全部 handle。</li>
+</ul>
+<h1 id="handle-database-key">handle database key<a class="anchor" href="#handle-database-key">#</a></h1>
+<ul>
+<li>每次安装协议接口，<code>gHandleDatabaseKey</code> 自增，并把对应 handle 的 <code>Key</code> 更新为新值（<code>Hand/Notify.c:249-250</code>）；</li>
+<li>因此&quot;镜像启动前的 Key&quot;是一条分界线：<code>Key</code> 更大的 handle 就是本次新建或被修改的。</li>
+</ul>
+<h1 id="coreconnecthandlesbykey">CoreConnectHandlesByKey<a class="anchor" href="#coreconnecthandlesbykey">#</a></h1>
+<p><code>Hand/Handle.c:1541</code>：</p>
+<ol>
+<li>遍历 <code>gHandleList</code>，统计 <code>Handle-&gt;Key &gt; Key</code> 的数量（<code>:1557-1562</code>）；</li>
+<li>分配并收集这些 handle（<code>:1570-1575</code>）；</li>
+<li>释放协议锁后逐个调用 <code>CoreConnectController(handle, NULL, NULL, TRUE)</code>（<code>:1586</code>）。</li>
+</ol>
+<h1 id="coreconnectcontroller-做什么">CoreConnectController 做什么<a class="anchor" href="#coreconnectcontroller-%e5%81%9a%e4%bb%80%e4%b9%88">#</a></h1>
+<p><code>Hand/DriverSupport.c:51</code>：</p>
+<ul>
+<li>对目标 handle 遍历驱动绑定列表，逐个调用 <code>Supported()</code>；命中则调用 <code>Start()</code>；</li>
+<li><code>Start()</code> 产生的 child handle 会被递归连接（<code>DriverSupport.c:232-237</code>）。</li>
+</ul>
+<p>另外两条会触发连接的路径：</p>
+<table>
+  <thead>
+      <tr>
+          <th>路径</th>
+          <th>位置</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>安装协议接口时立即连接</td>
+          <td><code>Notify.c:255-264</code></td>
+          <td>驱动入口点里每装一个协议，都可能立刻触发一轮 <code>Supported()</code></td>
+      </tr>
+      <tr>
+          <td>卸载协议接口失败或仍有打开项时重连</td>
+          <td><code>Handle.c:690-695</code></td>
+          <td>重新连接全部驱动</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="完整链路">完整链路<a class="anchor" href="#%e5%ae%8c%e6%95%b4%e9%93%be%e8%b7%af">#</a></h1>
+<pre tabindex="0"><code>CoreDispatcher (Dispatcher.c:405)
+  └─ LoadImage + CoreStartImage (Image.c:1764)
+        ├─ 镜像入口点：安装协议 / 创建 handle      →  Key 变化 (Notify.c:249)
+        └─ 返回后：CoreConnectHandlesByKey (Image.c:1960 → Handle.c:1541)
+              └─ CoreConnectController(..., TRUE) (Handle.c:1586 → DriverSupport.c:51)
+                    ├─ 各驱动的 Supported()
+                    ├─ 命中者 Start()
+                    └─ child handle 递归连接 (DriverSupport.c:232)</code></pre><h1 id="实用结论">实用结论<a class="anchor" href="#%e5%ae%9e%e7%94%a8%e7%bb%93%e8%ae%ba">#</a></h1>
+<ol>
+<li><code>Supported()</code> 被频繁调用属于正常：每次启动驱动、安装协议、递归连接 child handle 都会轮询一遍绑定列表；</li>
+<li>应用程序不会触发这个自动连接（<code>:1959</code> 排除了 <code>EFI_APPLICATION</code>）；</li>
+<li>想降低连接开销：入口点少装协议、不创建无用 handle；<code>Supported()</code> 保持&quot;轻&rdquo;（尽早返回、少打印、不做设备枚举）；避免在 <code>Start()</code> 中产生大量 child handle。</li>
+</ol>
+<h1 id="排查提示">排查提示<a class="anchor" href="#%e6%8e%92%e6%9f%a5%e6%8f%90%e7%a4%ba">#</a></h1>
+<ul>
+<li>日志中 <code>Supported()</code> 的顺序即可反映驱动绑定列表的顺序与递归层次；</li>
+<li>若某个设备始终没有被驱动接管，先确认其 handle 是否在&quot;新建/修改&quot;范围内（即是否由某次镜像执行产生），再确认绑定驱动的 <code>Supported()</code> 判断条件。</li>
+</ul>
+<h1 id="参考资料">参考资料<a class="anchor" href="#%e5%8f%82%e8%80%83%e8%b5%84%e6%96%99">#</a></h1>
+<ul>
+<li>UEFI Specification：<code>EFI_BOOT_SERVICES.StartImage()</code>、<code>ConnectController()</code></li>
+<li>PI Specification：Driver Model、Driver Binding</li>
+<li>EDK II：<code>MdeModulePkg/Core/Dxe/Image/Image.c</code>、<code>MdeModulePkg/Core/Dxe/Hand/Handle.c</code>、<code>MdeModulePkg/Core/Dxe/Hand/DriverSupport.c</code>、<code>MdeModulePkg/Core/Dxe/Hand/Notify.c</code></li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/dxe/dxemain/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>DXE Core 启动流程：DxeMain 做了什么</span>
+    </a>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#现象">现象</a></li>
+    <li><a href="#startimage-的骨架">StartImage 的骨架</a></li>
+    <li><a href="#规范要求">规范要求</a></li>
+    <li><a href="#handle-database-key">handle database key</a></li>
+    <li><a href="#coreconnecthandlesbykey">CoreConnectHandlesByKey</a></li>
+    <li><a href="#coreconnectcontroller-做什么">CoreConnectController 做什么</a></li>
+    <li><a href="#完整链路">完整链路</a></li>
+    <li><a href="#实用结论">实用结论</a></li>
+    <li><a href="#排查提示">排查提示</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

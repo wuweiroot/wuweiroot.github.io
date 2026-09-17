@@ -8,30 +8,30 @@ https://github.com/alex-shpak/hugo-book
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="PS E:\culture\Professional\Project\Makefile&gt; gcc test2.c test1.c PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.exe PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.bin
-make all
-">
+<meta name="description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
-<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/makefile/test/gcc/">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/">
   <meta property="og:site_name" content="大象的blog">
-  <meta property="og:title" content="大象的blog">
-  <meta property="og:description" content="PS E:\culture\Professional\Project\Makefile&gt; gcc test2.c test1.c PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.exe PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.bin
-make all">
+  <meta property="og:title" content="DXE 内核">
+  <meta property="og:description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
   <meta property="og:locale" content="zh_cn">
-  <meta property="og:type" content="article">
-    <meta property="article:section" content="posts">
+  <meta property="og:type" content="website">
 
 
-  <meta itemprop="name" content="大象的blog">
-  <meta itemprop="description" content="PS E:\culture\Professional\Project\Makefile&gt; gcc test2.c test1.c PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.exe PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.bin
-make all">
-  <meta itemprop="wordCount" content="21">
+  <meta itemprop="name" content="DXE 内核">
+  <meta itemprop="description" content="DXE 阶段的内核实现笔记：DxeMain 的启动流程、Dispatcher 与 Depex 的调度规则、StartImage 与 ConnectController 的连接机制。
+DXE Core 启动流程：DxeMain 做了什么 Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） StartImage 与 ConnectController：驱动连接是怎么被触发的">
+  <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="wordCount" content="19">
 
-<title>Gcc | 大象的blog</title>
+<title>DXE 内核 | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
 <link rel="manifest" href="/manifest.json">
-<link rel="canonical" href="https://wuweiroot.github.io/posts/makefile/test/gcc/">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/dxe/">
 <link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
 
 
@@ -39,11 +39,12 @@ make all">
   <script defer src="/en.search.min.8bae7626abe4cb3be2d6bc6cf14b3f290d350230c3a8013269f6332eb1f0685d.js" integrity="sha256-i652Jqvkyzvi1rxs8Us/KQ01AjDDqAEyafYzLrHwaF0=" crossorigin="anonymous"></script>
 
 
+<link rel="alternate" type="application/rss+xml" href="https://wuweiroot.github.io/posts/uefi/dxe/index.xml" title="大象的blog" />
 
   
  <link rel="stylesheet" href="/css/custom.css">
 </head>
-<body dir="ltr" class="book-kind-page book-type-posts">
+<body dir="ltr" class="book-kind-section book-type-posts">
   <input type="checkbox" class="hidden toggle" id="menu-control" />
   <input type="checkbox" class="hidden toggle" id="toc-control" />
   <main class="container flex">
@@ -112,7 +113,7 @@ make all">
     <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
   </label>
 
-  <h3>Gcc</h3>
+  <h3>DXE 内核</h3>
 
   <label for="toc-control">
     
@@ -126,40 +127,66 @@ make all">
 
       
       
-<article class="markdown book-post">
-  <h1>Gcc</h1>
-  
+<style>
+ 
+.post-list ul {
+    list-style-type: none;       
+    padding-left: 0;             
+    line-height: 2;              
+}
+.post-list li {
+    margin-bottom: 0.8em;        
+}
+.post-list a {
+    font-size: 1.1em;            
+    text-decoration: none;
+}
+.post-list a:hover {
+    text-decoration: underline;
+}
+</style>
 
-
-  
-
-  
-
-
-  <div class="book-post-content markdown-inner"><p>PS E:\culture\Professional\Project\Makefile&gt; gcc test2.c test1.c
-PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.exe
-PS E:\culture\Professional\Project\Makefile&gt; gcc test1.o test2.o -o output.bin</p>
-<p>make all</p>
-</div>
-</article>
+<main class="post-list">   
+  <h1>DXE 内核</h1>
+  <ul>
+    
+      <li>
+        <a href="/posts/uefi/dxe/dispatcher/">Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/dxe/dxemain/">DXE Core 启动流程：DxeMain 做了什么</a>
+      </li>
+    
+      <li>
+        <a href="/posts/uefi/dxe/startimage/">StartImage 与 ConnectController：驱动连接是怎么被触发的</a>
+      </li>
+    
+  </ul>
+</main>
  
       
 
       <footer class="book-footer">
         
   <div class="flex flex-wrap justify-between">
-  <div>
-  
-    <a href="/posts/makefile/makefile/" class="flex align-center">
-      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
-      <span>makefile</span>
-    </a>
-  
-  </div>
-  <div>
-  
-  </div>
+
+<div>
+
 </div>
+
+<div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
  
         
   

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DxeMain 是 DXE 阶段的入口函数，负责把&#34;能运行驱动&#34;的环境准备好，随后把控制权交给 Dispatcher 和 BDS。本文按执行顺序整理它的流程与关键位置（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+输入与产物# 内容 输入 HobStart：PEI 阶段通过 HOB 链表传下来的资源描述（可用内存、FV、架构相关数据） 产物 Boot Services / Runtime Services / DXE Services 三张表、已从 FV 发现并调度的驱动、交给 BDS 的控制权 函数原型：VOID EFIAPI DxeMain (IN VOID *HobStart)（MdeModulePkg/Core/Dxe/DxeMain/DxeMain.c:257）。
+启动流程（按执行顺序）# 阶段 位置 做什么 CPU 环境 :276-288 从 HOB 取向量移交信息，安装异常处理；初始化调试代理 内存服务 :293 CoreInitializeMemoryServices()：用 HOB 建立可用内存与分配池 System/Runtime 表 :301-307 从模板分配 EFI_SYSTEM_TABLE 与 EFI_RUNTIME_SERVICES（分配在 RuntimeServicesData 类型） Image 服务 :317 CoreInitializeImageServices()：LoadedImage、DevicePath 等基础 GCD 服务 :323 CoreInitializeGcdServices()：内存空间与 IO 空间的 GCD 描述符 库构造函数 :329 ProcessLibraryConstructorList() 配置表 :368-391 InstallConfigurationTable()：DXE Services 表、HOB 链表、MemoryTypeInformation、（可选）固定地址加载表 状态码与调试信息 :396-411 上报 DXE_CORE_PC_ENTRY_POINT；建立调试镜像信息表 事件服务 :476 CoreInitializeEventServices() 内存属性与保护 :481-482 Memory Attributes Table、Memory Protection（只读/Guard 等） 解压协议 :519-525 安装 Decompress Protocol 架构协议通知 :532 CoreNotifyOnProtocolInstallation()：注册对架构协议安装的通知 FV 协议 :537-547 FwVolBlockDriverInit()、FwVolDriverInit()、InitializeSectionExtraction()：为 HOB 中每个 FV 产出读写与解包能力 调度器初始化与运行 :552-563 CoreInitializeDispatcher() → CoreDispatcher()（详见 Dispatcher 与 Depex） 收尾校验 :569-594 DEBUG 下打印缺失的架构协议与未调度驱动；CoreAllEfiServicesAvailable() 校验协议齐备，缺失则上报 major error 交接 BDS :599-613 上报 PC_HANDOFF_TO_NEXT；调用 gBds-&gt;Entry(gBds)；BDS 不应返回，返回则 CpuDeadLoop() 三张服务表# DXE Core 自身实现三张表（在 DxeMain.c 前部以静态表定义）：
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/dxemain/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="DXE Core 启动流程：DxeMain 做了什么">
+  <meta property="og:description" content="DxeMain 是 DXE 阶段的入口函数，负责把&#34;能运行驱动&#34;的环境准备好，随后把控制权交给 Dispatcher 和 BDS。本文按执行顺序整理它的流程与关键位置（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+输入与产物# 内容 输入 HobStart：PEI 阶段通过 HOB 链表传下来的资源描述（可用内存、FV、架构相关数据） 产物 Boot Services / Runtime Services / DXE Services 三张表、已从 FV 发现并调度的驱动、交给 BDS 的控制权 函数原型：VOID EFIAPI DxeMain (IN VOID *HobStart)（MdeModulePkg/Core/Dxe/DxeMain/DxeMain.c:257）。
+启动流程（按执行顺序）# 阶段 位置 做什么 CPU 环境 :276-288 从 HOB 取向量移交信息，安装异常处理；初始化调试代理 内存服务 :293 CoreInitializeMemoryServices()：用 HOB 建立可用内存与分配池 System/Runtime 表 :301-307 从模板分配 EFI_SYSTEM_TABLE 与 EFI_RUNTIME_SERVICES（分配在 RuntimeServicesData 类型） Image 服务 :317 CoreInitializeImageServices()：LoadedImage、DevicePath 等基础 GCD 服务 :323 CoreInitializeGcdServices()：内存空间与 IO 空间的 GCD 描述符 库构造函数 :329 ProcessLibraryConstructorList() 配置表 :368-391 InstallConfigurationTable()：DXE Services 表、HOB 链表、MemoryTypeInformation、（可选）固定地址加载表 状态码与调试信息 :396-411 上报 DXE_CORE_PC_ENTRY_POINT；建立调试镜像信息表 事件服务 :476 CoreInitializeEventServices() 内存属性与保护 :481-482 Memory Attributes Table、Memory Protection（只读/Guard 等） 解压协议 :519-525 安装 Decompress Protocol 架构协议通知 :532 CoreNotifyOnProtocolInstallation()：注册对架构协议安装的通知 FV 协议 :537-547 FwVolBlockDriverInit()、FwVolDriverInit()、InitializeSectionExtraction()：为 HOB 中每个 FV 产出读写与解包能力 调度器初始化与运行 :552-563 CoreInitializeDispatcher() → CoreDispatcher()（详见 Dispatcher 与 Depex） 收尾校验 :569-594 DEBUG 下打印缺失的架构协议与未调度驱动；CoreAllEfiServicesAvailable() 校验协议齐备，缺失则上报 major error 交接 BDS :599-613 上报 PC_HANDOFF_TO_NEXT；调用 gBds-&gt;Entry(gBds)；BDS 不应返回，返回则 CpuDeadLoop() 三张服务表# DXE Core 自身实现三张表（在 DxeMain.c 前部以静态表定义）：">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-09-17T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-09-17T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="DXE Core 启动流程：DxeMain 做了什么">
+  <meta itemprop="description" content="DxeMain 是 DXE 阶段的入口函数，负责把&#34;能运行驱动&#34;的环境准备好，随后把控制权交给 Dispatcher 和 BDS。本文按执行顺序整理它的流程与关键位置（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+输入与产物# 内容 输入 HobStart：PEI 阶段通过 HOB 链表传下来的资源描述（可用内存、FV、架构相关数据） 产物 Boot Services / Runtime Services / DXE Services 三张表、已从 FV 发现并调度的驱动、交给 BDS 的控制权 函数原型：VOID EFIAPI DxeMain (IN VOID *HobStart)（MdeModulePkg/Core/Dxe/DxeMain/DxeMain.c:257）。
+启动流程（按执行顺序）# 阶段 位置 做什么 CPU 环境 :276-288 从 HOB 取向量移交信息，安装异常处理；初始化调试代理 内存服务 :293 CoreInitializeMemoryServices()：用 HOB 建立可用内存与分配池 System/Runtime 表 :301-307 从模板分配 EFI_SYSTEM_TABLE 与 EFI_RUNTIME_SERVICES（分配在 RuntimeServicesData 类型） Image 服务 :317 CoreInitializeImageServices()：LoadedImage、DevicePath 等基础 GCD 服务 :323 CoreInitializeGcdServices()：内存空间与 IO 空间的 GCD 描述符 库构造函数 :329 ProcessLibraryConstructorList() 配置表 :368-391 InstallConfigurationTable()：DXE Services 表、HOB 链表、MemoryTypeInformation、（可选）固定地址加载表 状态码与调试信息 :396-411 上报 DXE_CORE_PC_ENTRY_POINT；建立调试镜像信息表 事件服务 :476 CoreInitializeEventServices() 内存属性与保护 :481-482 Memory Attributes Table、Memory Protection（只读/Guard 等） 解压协议 :519-525 安装 Decompress Protocol 架构协议通知 :532 CoreNotifyOnProtocolInstallation()：注册对架构协议安装的通知 FV 协议 :537-547 FwVolBlockDriverInit()、FwVolDriverInit()、InitializeSectionExtraction()：为 HOB 中每个 FV 产出读写与解包能力 调度器初始化与运行 :552-563 CoreInitializeDispatcher() → CoreDispatcher()（详见 Dispatcher 与 Depex） 收尾校验 :569-594 DEBUG 下打印缺失的架构协议与未调度驱动；CoreAllEfiServicesAvailable() 校验协议齐备，缺失则上报 major error 交接 BDS :599-613 上报 PC_HANDOFF_TO_NEXT；调用 gBds-&gt;Entry(gBds)；BDS 不应返回，返回则 CpuDeadLoop() 三张服务表# DXE Core 自身实现三张表（在 DxeMain.c 前部以静态表定义）：">
+  <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="wordCount" content="250">
+
+<title>DXE Core 启动流程：DxeMain 做了什么 | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/dxe/dxemain/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.8bae7626abe4cb3be2d6bc6cf14b3f290d350230c3a8013269f6332eb1f0685d.js" integrity="sha256-i652Jqvkyzvi1rxs8Us/KQ01AjDDqAEyafYzLrHwaF0=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>DXE Core 启动流程：DxeMain 做了什么</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#输入与产物">输入与产物</a></li>
+    <li><a href="#启动流程按执行顺序">启动流程（按执行顺序）</a></li>
+    <li><a href="#三张服务表">三张服务表</a></li>
+    <li><a href="#架构协议的填空机制">架构协议的&quot;填空&quot;机制</a></li>
+    <li><a href="#与调度器的交接点">与调度器的交接点</a></li>
+    <li><a href="#排查提示">排查提示</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>DXE Core 启动流程：DxeMain 做了什么</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>September 17, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>DxeMain 是 DXE 阶段的入口函数，负责把&quot;能运行驱动&quot;的环境准备好，随后把控制权交给 Dispatcher 和 BDS。本文按执行顺序整理它的流程与关键位置（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。</p>
+<h1 id="输入与产物">输入与产物<a class="anchor" href="#%e8%be%93%e5%85%a5%e4%b8%8e%e4%ba%a7%e7%89%a9">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>内容</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>输入</td>
+          <td><code>HobStart</code>：PEI 阶段通过 HOB 链表传下来的资源描述（可用内存、FV、架构相关数据）</td>
+      </tr>
+      <tr>
+          <td>产物</td>
+          <td>Boot Services / Runtime Services / DXE Services 三张表、已从 FV 发现并调度的驱动、交给 BDS 的控制权</td>
+      </tr>
+  </tbody>
+</table>
+<p>函数原型：<code>VOID EFIAPI DxeMain (IN VOID *HobStart)</code>（<code>MdeModulePkg/Core/Dxe/DxeMain/DxeMain.c:257</code>）。</p>
+<h1 id="启动流程按执行顺序">启动流程（按执行顺序）<a class="anchor" href="#%e5%90%af%e5%8a%a8%e6%b5%81%e7%a8%8b%e6%8c%89%e6%89%a7%e8%a1%8c%e9%a1%ba%e5%ba%8f">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>阶段</th>
+          <th>位置</th>
+          <th>做什么</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>CPU 环境</td>
+          <td><code>:276-288</code></td>
+          <td>从 HOB 取向量移交信息，安装异常处理；初始化调试代理</td>
+      </tr>
+      <tr>
+          <td>内存服务</td>
+          <td><code>:293</code></td>
+          <td><code>CoreInitializeMemoryServices()</code>：用 HOB 建立可用内存与分配池</td>
+      </tr>
+      <tr>
+          <td>System/Runtime 表</td>
+          <td><code>:301-307</code></td>
+          <td>从模板分配 <code>EFI_SYSTEM_TABLE</code> 与 <code>EFI_RUNTIME_SERVICES</code>（分配在 RuntimeServicesData 类型）</td>
+      </tr>
+      <tr>
+          <td>Image 服务</td>
+          <td><code>:317</code></td>
+          <td><code>CoreInitializeImageServices()</code>：LoadedImage、DevicePath 等基础</td>
+      </tr>
+      <tr>
+          <td>GCD 服务</td>
+          <td><code>:323</code></td>
+          <td><code>CoreInitializeGcdServices()</code>：内存空间与 IO 空间的 GCD 描述符</td>
+      </tr>
+      <tr>
+          <td>库构造函数</td>
+          <td><code>:329</code></td>
+          <td><code>ProcessLibraryConstructorList()</code></td>
+      </tr>
+      <tr>
+          <td>配置表</td>
+          <td><code>:368-391</code></td>
+          <td><code>InstallConfigurationTable()</code>：DXE Services 表、HOB 链表、MemoryTypeInformation、（可选）固定地址加载表</td>
+      </tr>
+      <tr>
+          <td>状态码与调试信息</td>
+          <td><code>:396-411</code></td>
+          <td>上报 <code>DXE_CORE_PC_ENTRY_POINT</code>；建立调试镜像信息表</td>
+      </tr>
+      <tr>
+          <td>事件服务</td>
+          <td><code>:476</code></td>
+          <td><code>CoreInitializeEventServices()</code></td>
+      </tr>
+      <tr>
+          <td>内存属性与保护</td>
+          <td><code>:481-482</code></td>
+          <td>Memory Attributes Table、Memory Protection（只读/Guard 等）</td>
+      </tr>
+      <tr>
+          <td>解压协议</td>
+          <td><code>:519-525</code></td>
+          <td>安装 Decompress Protocol</td>
+      </tr>
+      <tr>
+          <td>架构协议通知</td>
+          <td><code>:532</code></td>
+          <td><code>CoreNotifyOnProtocolInstallation()</code>：注册对架构协议安装的通知</td>
+      </tr>
+      <tr>
+          <td>FV 协议</td>
+          <td><code>:537-547</code></td>
+          <td><code>FwVolBlockDriverInit()</code>、<code>FwVolDriverInit()</code>、<code>InitializeSectionExtraction()</code>：为 HOB 中每个 FV 产出读写与解包能力</td>
+      </tr>
+      <tr>
+          <td>调度器初始化与运行</td>
+          <td><code>:552-563</code></td>
+          <td><code>CoreInitializeDispatcher()</code> → <code>CoreDispatcher()</code>（详见 <a href="/posts/uefi/dxe/dispatcher/">Dispatcher 与 Depex</a>）</td>
+      </tr>
+      <tr>
+          <td>收尾校验</td>
+          <td><code>:569-594</code></td>
+          <td>DEBUG 下打印缺失的架构协议与未调度驱动；<code>CoreAllEfiServicesAvailable()</code> 校验协议齐备，缺失则上报 major error</td>
+      </tr>
+      <tr>
+          <td>交接 BDS</td>
+          <td><code>:599-613</code></td>
+          <td>上报 <code>PC_HANDOFF_TO_NEXT</code>；调用 <code>gBds-&gt;Entry(gBds)</code>；BDS 不应返回，返回则 <code>CpuDeadLoop()</code></td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="三张服务表">三张服务表<a class="anchor" href="#%e4%b8%89%e5%bc%a0%e6%9c%8d%e5%8a%a1%e8%a1%a8">#</a></h1>
+<p>DXE Core 自身实现三张表（在 <code>DxeMain.c</code> 前部以静态表定义）：</p>
+<table>
+  <thead>
+      <tr>
+          <th>表</th>
+          <th>内容</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Boot Services</td>
+          <td><code>Dispatch</code>、<code>InstallConfigurationTable</code>、<code>SetTimer</code>、内存/事件/协议相关服务</td>
+          <td>部分表项直接指向 Core 内部实现（如 <code>Dispatch</code> → <code>CoreDispatcher</code>）</td>
+      </tr>
+      <tr>
+          <td>Runtime Services</td>
+          <td>变量、时间、复位等</td>
+          <td>需要在退出启动服务后仍可用，相关数据放在 RuntimeServicesData</td>
+      </tr>
+      <tr>
+          <td>DXE Services</td>
+          <td>GCD、调度、驱动管理相关服务</td>
+          <td>通过配置表 <code>gEfiDxeServicesTableGuid</code> 暴露</td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>这些表不是一次性填满的</strong>：部分表项要等对应的架构协议（如定时器、看门狗、运行时、CPU）被提供者安装后才可用。</p>
+<h1 id="架构协议的填空机制">架构协议的&quot;填空&quot;机制<a class="anchor" href="#%e6%9e%b6%e6%9e%84%e5%8d%8f%e8%ae%ae%e7%9a%84%e5%a1%ab%e7%a9%ba%e6%9c%ba%e5%88%b6">#</a></h1>
+<ul>
+<li><code>CoreNotifyOnProtocolInstallation()</code>（<code>:532</code>）为各架构协议 GUID 注册通知；</li>
+<li>提供者安装协议 → 通知被触发 → 相应服务项被填入 BS/RT 表；</li>
+<li><code>CoreAllEfiServicesAvailable()</code>（<code>:583</code>）做最终校验：若架构协议不齐，说明服务表不完整，上报 <code>EFI_ERROR_CODE | EFI_ERROR_MAJOR</code> 并触发断言。</li>
+</ul>
+<h1 id="与调度器的交接点">与调度器的交接点<a class="anchor" href="#%e4%b8%8e%e8%b0%83%e5%ba%a6%e5%99%a8%e7%9a%84%e4%ba%a4%e6%8e%a5%e7%82%b9">#</a></h1>
+<pre tabindex="0"><code>DxeMain()
+  ├─ 准备：内存 / GCD / 事件 / FV 协议 / 服务表 / 内存保护
+  ├─ CoreInitializeDispatcher()            DxeMain.c:552
+  ├─ CoreDispatcher()                      DxeMain.c:563   ← 从这里开始跑驱动
+  ├─ CoreAllEfiServicesAvailable()         DxeMain.c:583
+  └─ gBds-&gt;Entry(gBds)                     DxeMain.c:607   ← 交给 BDS</code></pre><p>要点：</p>
+<ol>
+<li>DxeMain 不做具体硬件初始化（PCI 枚举、控制台、启动项都不在这里），它只负责把运行驱动所需的环境准备好；</li>
+<li>驱动全部由 Dispatcher 依据 Depex 决定顺序并启动；</li>
+<li>控制台、启动项与设置界面属于 BDS 阶段。</li>
+</ol>
+<h1 id="排查提示">排查提示<a class="anchor" href="#%e6%8e%92%e6%9f%a5%e6%8f%90%e7%a4%ba">#</a></h1>
+<ul>
+<li><strong>卡在某个阶段</strong>：可用 <code>DXE_CORE_PC_ENTRY_POINT</code>（<code>:396</code>）与 <code>PC_HANDOFF_TO_NEXT</code>（<code>:599</code>）两个进度码判断是&quot;还没进 DXE 主体&quot;还是&quot;已进入调度/交接&quot;；</li>
+<li><strong>服务缺失</strong>：若出现架构协议缺失的断言，先看对应协议的提供者是否被包含进 FV、Depex 是否满足；</li>
+<li><strong>驱动没跑</strong>：先看 <code>CoreDisplayDiscoveredNotDispatched()</code>（<code>:577</code>，DEBUG 构建）是否把它列出来，再按 <a href="/posts/uefi/dxe/dispatcher/">Dispatcher 与 Depex</a> 的清单排查。</li>
+</ul>
+<h1 id="参考资料">参考资料<a class="anchor" href="#%e5%8f%82%e8%80%83%e8%b5%84%e6%96%99">#</a></h1>
+<ul>
+<li>PI Specification：DXE Core、Architectural Protocols</li>
+<li>EDK II：<code>MdeModulePkg/Core/Dxe/DxeMain/DxeMain.c</code>、<code>MdeModulePkg/Core/Dxe/DxeMain/DxeProtocolNotify.c</code>、<code>MdeModulePkg/Core/Dxe/Misc/</code></li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+    <a href="/posts/uefi/dxe/dispatcher/" class="flex align-center">
+      <img src="/icons/backward.svg" class="book-icon" alt="Backward" />
+      <span>Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）</span>
+    </a>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/dxe/startimage/" class="flex align-center">
+      <span>StartImage 与 ConnectController：驱动连接是怎么被触发的</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#输入与产物">输入与产物</a></li>
+    <li><a href="#启动流程按执行顺序">启动流程（按执行顺序）</a></li>
+    <li><a href="#三张服务表">三张服务表</a></li>
+    <li><a href="#架构协议的填空机制">架构协议的&quot;填空&quot;机制</a></li>
+    <li><a href="#与调度器的交接点">与调度器的交接点</a></li>
+    <li><a href="#排查提示">排查提示</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

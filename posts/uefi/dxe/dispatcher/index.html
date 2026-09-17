@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DXE 阶段的驱动由 Dispatcher 统一发现与启动，启动顺序由 Depex（依赖表达式）决定。本文整理这套机制与排查方法（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+Dispatcher 的职责# 从 FV 中发现驱动文件（FFS 中的 DXE driver）； 读取该驱动的 Depex，判断当前是否可调度； 可调度则 LoadImage &#43; StartImage，并处理 BEFORE / AFTER 的顺序要求。 三个核心链表# 变量 位置 作用 mDiscoveredList Dispatcher.c:40 已发现但尚未调度的驱动条目（不释放） mScheduledQueue Dispatcher.c:46 依赖已满足、待启动的驱动队列 mFvHandleList Dispatcher.c:51 已处理过的 FV，避免重复发现 三阶段模型# Dispatcher.c 顶部的模块注释（:1-26）把调度分成三步：
+阶段 关键函数 行为 发现 CoreFwVolEventProtocolNotify（:1246）→ CoreAddToDriverList（:903） FV 协议安装事件触发；遍历 FFS，把驱动加入 mDiscoveredList；A PRIORI 文件中的驱动直接入队 调度 CoreDispatcher（:405） 主循环：从 mScheduledQueue 取一条 → LoadImage &#43; StartImage；队列空后重扫 mDiscoveredList，把 Depex 已满足的加入队列 排序 CoreInsertOnScheduledQueueWhileProcessingBeforeAndAfter（:624） 入队时处理 BEFORE / AFTER 的相对顺序 Depex 段的读取与预处理：CoreGetDepexSectionAndPreProccess（:240），读取 EFI_SECTION_DXE_DEPEX（:254）。
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/dxe/dispatcher/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）">
+  <meta property="og:description" content="DXE 阶段的驱动由 Dispatcher 统一发现与启动，启动顺序由 Depex（依赖表达式）决定。本文整理这套机制与排查方法（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+Dispatcher 的职责# 从 FV 中发现驱动文件（FFS 中的 DXE driver）； 读取该驱动的 Depex，判断当前是否可调度； 可调度则 LoadImage &#43; StartImage，并处理 BEFORE / AFTER 的顺序要求。 三个核心链表# 变量 位置 作用 mDiscoveredList Dispatcher.c:40 已发现但尚未调度的驱动条目（不释放） mScheduledQueue Dispatcher.c:46 依赖已满足、待启动的驱动队列 mFvHandleList Dispatcher.c:51 已处理过的 FV，避免重复发现 三阶段模型# Dispatcher.c 顶部的模块注释（:1-26）把调度分成三步：
+阶段 关键函数 行为 发现 CoreFwVolEventProtocolNotify（:1246）→ CoreAddToDriverList（:903） FV 协议安装事件触发；遍历 FFS，把驱动加入 mDiscoveredList；A PRIORI 文件中的驱动直接入队 调度 CoreDispatcher（:405） 主循环：从 mScheduledQueue 取一条 → LoadImage &#43; StartImage；队列空后重扫 mDiscoveredList，把 Depex 已满足的加入队列 排序 CoreInsertOnScheduledQueueWhileProcessingBeforeAndAfter（:624） 入队时处理 BEFORE / AFTER 的相对顺序 Depex 段的读取与预处理：CoreGetDepexSectionAndPreProccess（:240），读取 EFI_SECTION_DXE_DEPEX（:254）。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-09-17T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-09-17T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）">
+  <meta itemprop="description" content="DXE 阶段的驱动由 Dispatcher 统一发现与启动，启动顺序由 Depex（依赖表达式）决定。本文整理这套机制与排查方法（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。
+Dispatcher 的职责# 从 FV 中发现驱动文件（FFS 中的 DXE driver）； 读取该驱动的 Depex，判断当前是否可调度； 可调度则 LoadImage &#43; StartImage，并处理 BEFORE / AFTER 的顺序要求。 三个核心链表# 变量 位置 作用 mDiscoveredList Dispatcher.c:40 已发现但尚未调度的驱动条目（不释放） mScheduledQueue Dispatcher.c:46 依赖已满足、待启动的驱动队列 mFvHandleList Dispatcher.c:51 已处理过的 FV，避免重复发现 三阶段模型# Dispatcher.c 顶部的模块注释（:1-26）把调度分成三步：
+阶段 关键函数 行为 发现 CoreFwVolEventProtocolNotify（:1246）→ CoreAddToDriverList（:903） FV 协议安装事件触发；遍历 FFS，把驱动加入 mDiscoveredList；A PRIORI 文件中的驱动直接入队 调度 CoreDispatcher（:405） 主循环：从 mScheduledQueue 取一条 → LoadImage &#43; StartImage；队列空后重扫 mDiscoveredList，把 Depex 已满足的加入队列 排序 CoreInsertOnScheduledQueueWhileProcessingBeforeAndAfter（:624） 入队时处理 BEFORE / AFTER 的相对顺序 Depex 段的读取与预处理：CoreGetDepexSectionAndPreProccess（:240），读取 EFI_SECTION_DXE_DEPEX（:254）。">
+  <meta itemprop="datePublished" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-17T00:00:00+00:00">
+  <meta itemprop="wordCount" content="208">
+
+<title>Dispatcher 与 Depex：驱动为什么会被调度（或不被调度） | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/dxe/dispatcher/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.8bae7626abe4cb3be2d6bc6cf14b3f290d350230c3a8013269f6332eb1f0685d.js" integrity="sha256-i652Jqvkyzvi1rxs8Us/KQ01AjDDqAEyafYzLrHwaF0=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#dispatcher-的职责">Dispatcher 的职责</a></li>
+    <li><a href="#三个核心链表">三个核心链表</a></li>
+    <li><a href="#三阶段模型">三阶段模型</a></li>
+    <li><a href="#depex依赖表达式">Depex：依赖表达式</a></li>
+    <li><a href="#a-priori-文件">A PRIORI 文件</a></li>
+    <li><a href="#驱动没有被调度排查清单">驱动没有被调度：排查清单</a></li>
+    <li><a href="#与-uefi-driver-model-的区别">与 UEFI Driver Model 的区别</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>Dispatcher 与 Depex：驱动为什么会被调度（或不被调度）</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>September 17, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><p>DXE 阶段的驱动由 Dispatcher 统一发现与启动，启动顺序由 Depex（依赖表达式）决定。本文整理这套机制与排查方法（以 EDK II 的 Dxe 内核为例，行号随版本略有差异）。</p>
+<h1 id="dispatcher-的职责">Dispatcher 的职责<a class="anchor" href="#dispatcher-%e7%9a%84%e8%81%8c%e8%b4%a3">#</a></h1>
+<ol>
+<li>从 FV 中发现驱动文件（FFS 中的 DXE driver）；</li>
+<li>读取该驱动的 Depex，判断当前是否可调度；</li>
+<li>可调度则 LoadImage + StartImage，并处理 BEFORE / AFTER 的顺序要求。</li>
+</ol>
+<h1 id="三个核心链表">三个核心链表<a class="anchor" href="#%e4%b8%89%e4%b8%aa%e6%a0%b8%e5%bf%83%e9%93%be%e8%a1%a8">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>变量</th>
+          <th>位置</th>
+          <th>作用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>mDiscoveredList</code></td>
+          <td><code>Dispatcher.c:40</code></td>
+          <td>已发现但尚未调度的驱动条目（不释放）</td>
+      </tr>
+      <tr>
+          <td><code>mScheduledQueue</code></td>
+          <td><code>Dispatcher.c:46</code></td>
+          <td>依赖已满足、待启动的驱动队列</td>
+      </tr>
+      <tr>
+          <td><code>mFvHandleList</code></td>
+          <td><code>Dispatcher.c:51</code></td>
+          <td>已处理过的 FV，避免重复发现</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="三阶段模型">三阶段模型<a class="anchor" href="#%e4%b8%89%e9%98%b6%e6%ae%b5%e6%a8%a1%e5%9e%8b">#</a></h1>
+<p><code>Dispatcher.c</code> 顶部的模块注释（<code>:1-26</code>）把调度分成三步：</p>
+<table>
+  <thead>
+      <tr>
+          <th>阶段</th>
+          <th>关键函数</th>
+          <th>行为</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>发现</td>
+          <td><code>CoreFwVolEventProtocolNotify</code>（<code>:1246</code>）→ <code>CoreAddToDriverList</code>（<code>:903</code>）</td>
+          <td>FV 协议安装事件触发；遍历 FFS，把驱动加入 <code>mDiscoveredList</code>；A PRIORI 文件中的驱动直接入队</td>
+      </tr>
+      <tr>
+          <td>调度</td>
+          <td><code>CoreDispatcher</code>（<code>:405</code>）</td>
+          <td>主循环：从 <code>mScheduledQueue</code> 取一条 → LoadImage + StartImage；队列空后重扫 <code>mDiscoveredList</code>，把 Depex 已满足的加入队列</td>
+      </tr>
+      <tr>
+          <td>排序</td>
+          <td><code>CoreInsertOnScheduledQueueWhileProcessingBeforeAndAfter</code>（<code>:624</code>）</td>
+          <td>入队时处理 BEFORE / AFTER 的相对顺序</td>
+      </tr>
+  </tbody>
+</table>
+<p>Depex 段的读取与预处理：<code>CoreGetDepexSectionAndPreProccess</code>（<code>:240</code>），读取 <code>EFI_SECTION_DXE_DEPEX</code>（<code>:254</code>）。</p>
+<h1 id="depex依赖表达式">Depex：依赖表达式<a class="anchor" href="#depex%e4%be%9d%e8%b5%96%e8%a1%a8%e8%be%be%e5%bc%8f">#</a></h1>
+<p>操作码定义在 <code>MdePkg/Include/Pi/PiDependency.h</code>：</p>
+<table>
+  <thead>
+      <tr>
+          <th>值</th>
+          <th>操作码</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>0x00</td>
+          <td><code>EFI_DEP_BEFORE</code></td>
+          <td>必须排在某驱动之前（只能单独出现）</td>
+      </tr>
+      <tr>
+          <td>0x01</td>
+          <td><code>EFI_DEP_AFTER</code></td>
+          <td>必须排在某驱动之后（只能单独出现）</td>
+      </tr>
+      <tr>
+          <td>0x02</td>
+          <td><code>EFI_DEP_PUSH</code></td>
+          <td>检查指定协议（可带 handle）是否存在，向栈压入 TRUE / FALSE</td>
+      </tr>
+      <tr>
+          <td>0x03 / 0x04 / 0x05</td>
+          <td><code>EFI_DEP_AND</code> / <code>OR</code> / <code>NOT</code></td>
+          <td>布尔运算（栈式求值）</td>
+      </tr>
+      <tr>
+          <td>0x06 / 0x07</td>
+          <td><code>EFI_DEP_TRUE</code> / <code>FALSE</code></td>
+          <td>常量</td>
+      </tr>
+      <tr>
+          <td>0x08</td>
+          <td><code>EFI_DEP_END</code></td>
+          <td>表达式结束</td>
+      </tr>
+      <tr>
+          <td>0x09</td>
+          <td><code>EFI_DEP_SOR</code></td>
+          <td>Schedule On Request：需外部显式请求才调度（仅 DXE 驱动）</td>
+      </tr>
+  </tbody>
+</table>
+<p>求值实现（<code>Dependency.c</code>）：</p>
+<ul>
+<li>预处理 <code>CorePreProcessDepex</code>（<code>:161</code>）：识别 SOR（<code>:168</code>）、BEFORE（<code>:174</code>）、AFTER（<code>:176</code>）；</li>
+<li>主求值 <code>CoreIsSchedulable</code>（<code>:251</code>）：使用布尔求值栈 <code>PushBool</code>（<code>:91</code>）/ <code>PopBool</code>（<code>:129</code>），逐操作码处理 —— PUSH（<code>:347</code>）、AND（<code>:381</code>）、OR（<code>:403</code>）、NOT（<code>:425</code>）、TRUE（<code>:441</code>）、FALSE（<code>:451</code>）、END（<code>:461</code>）。</li>
+</ul>
+<p><code>PUSH</code> 的语义是&quot;该协议（在指定 handle 上）是否已经安装&quot;：已安装压 TRUE，否则压 FALSE。因此 <strong>Depex 等价于&quot;依赖的协议是否已就位&quot;</strong>。</p>
+<h1 id="a-priori-文件">A PRIORI 文件<a class="anchor" href="#a-priori-%e6%96%87%e4%bb%b6">#</a></h1>
+<p>FV 中的 A PRIORI 文件列出的驱动不参与 Depex 判断，直接进入 <code>mScheduledQueue</code>，用于强制某些驱动先跑（例如提供架构协议的驱动）。</p>
+<h1 id="驱动没有被调度排查清单">驱动没有被调度：排查清单<a class="anchor" href="#%e9%a9%b1%e5%8a%a8%e6%b2%a1%e6%9c%89%e8%a2%ab%e8%b0%83%e5%ba%a6%e6%8e%92%e6%9f%a5%e6%b8%85%e5%8d%95">#</a></h1>
+<ol>
+<li><strong>没被打进 FV</strong>：FDF 是否包含该模块、FV 布局是否正确；</li>
+<li><strong>Depex 不满足</strong>：依赖的协议没有提供者、AFTER 的目标驱动没跑、SOR 没有被显式调度；</li>
+<li><strong>架构协议缺失</strong>：BS/RT 服务表不完整会影响后续驱动；</li>
+<li><strong>顺序被挡</strong>：A PRIORI、BEFORE / AFTER 的组合把它排到了后面；</li>
+<li><strong>确认手段</strong>：DEBUG 构建下 <code>CoreDisplayDiscoveredNotDispatched()</code>（<code>DxeMain.c:577</code>）会打印&quot;已发现但未调度&quot;的驱动列表，这是最直接的线索。</li>
+</ol>
+<h1 id="与-uefi-driver-model-的区别">与 UEFI Driver Model 的区别<a class="anchor" href="#%e4%b8%8e-uefi-driver-model-%e7%9a%84%e5%8c%ba%e5%88%ab">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>类型</th>
+          <th>行为</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>DXE driver</td>
+          <td>入口点被 StartImage 调用后即开始工作</td>
+      </tr>
+      <tr>
+          <td>UEFI driver（实现 <code>EFI_DRIVER_BINDING_PROTOCOL</code>）</td>
+          <td>入口点通常只安装 Binding 协议，设备初始化要等 <code>ConnectController</code> 调用其 <code>Supported()</code> / <code>Start()</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>后者的连接时机见 <a href="/posts/uefi/dxe/startimage/">StartImage 与 ConnectController</a>。</p>
+<h1 id="参考资料">参考资料<a class="anchor" href="#%e5%8f%82%e8%80%83%e8%b5%84%e6%96%99">#</a></h1>
+<ul>
+<li>PI Specification：DXE Dispatcher、Dependency Expression</li>
+<li>EDK II：<code>MdeModulePkg/Core/Dxe/Dispatcher/Dispatcher.c</code>、<code>MdeModulePkg/Core/Dxe/Dispatcher/Dependency.c</code>、<code>MdePkg/Include/Pi/PiDependency.h</code></li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+    <a href="/posts/uefi/dxe/dxemain/" class="flex align-center">
+      <span>DXE Core 启动流程：DxeMain 做了什么</span>
+      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
+    </a>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#dispatcher-的职责">Dispatcher 的职责</a></li>
+    <li><a href="#三个核心链表">三个核心链表</a></li>
+    <li><a href="#三阶段模型">三阶段模型</a></li>
+    <li><a href="#depex依赖表达式">Depex：依赖表达式</a></li>
+    <li><a href="#a-priori-文件">A PRIORI 文件</a></li>
+    <li><a href="#驱动没有被调度排查清单">驱动没有被调度：排查清单</a></li>
+    <li><a href="#与-uefi-driver-model-的区别">与 UEFI Driver Model 的区别</a></li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
