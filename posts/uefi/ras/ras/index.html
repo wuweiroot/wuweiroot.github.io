@@ -15,7 +15,7 @@ https://github.com/alex-shpak/hugo-book
 ">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
-<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/ras/arch/">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/ras/ras/">
   <meta property="og:site_name" content="大象的blog">
   <meta property="og:title" content="RAS 架构与流程总览：分层、启动期与运行期链路">
   <meta property="og:description" content="本文按分层结构整理服务器 BIOS 的 RAS 实现：各层职责、启动期与运行期两条主链、上报通路的取舍，以及限流算法与 APEI 四张表的定位。
@@ -36,17 +36,17 @@ https://github.com/alex-shpak/hugo-book
 代码架构分层# 硅片侧# 硅片能力层：硅片模块包 硅片接口层：硅片 SDK 接口 硅片配置层：硅片配置包 平台框架层：平台模块包 IBV 侧# 封装上报：RAS 封装包 OEM 侧# ODM 定制 EC 上报阈值定制 BMC 上报定制、BMC 诊断模式 分层架构# ┌── 硅片固件层（硅片厂商提供的底层 RAS 服务）──────────────────────┐ │ RAS 策略驱动 : 生成 RAS 策略，采集 DIMM/CPU/MCA bank 映射 │ │ DXE 服务协议 : DXE 服务协议（APEI 记录追加原语） │ │ SMM 服务 : SMM 服务（MCA 快照/阈值/清除、首错处理、 │ │ DRAM CE 计数、FRU 文本） │ │ 错误日志三模块 : PEI 建错误日志 HOB → DXE 解析 → POST 显示 │ └──────────────────────────────────────────────────────────────────┘ ┌── 平台层（错误处理主体）──────────────────────────────────────────┐ │ PEI : 建 RAS 信息 HOB（含 eDPC 状态等） │ │ DXE : 装 APEI 协议；生成 BERT / HEST / EINJ；启动期错误扫描 │ │ SMM : 注册并分发 SMI；解析错误 → 组 CPER → 触发 NMI/SCI； │ │ EDR / 热插拔 / PPR 交互 │ │ ASL : 独立 RAS SSDT &#43; _OSC &#43; APEI 错误设备（PNP0C33）&#43; SMI 门铃 │ └──────────────────────────────────────────────────────────────────┘ ┌── IBV 封装层 ────────────────────────────────────────────────────┐ │ OEM 回调驱动（DXE/SMM）: 用 11 项回调表把平台层错误回调转成上报流程 │ │ WHEA（DXE&#43;SMM） : 真正提供 ERST（ACPI 表 &#43; SPI Flash 持久区 │ │ &#43; SW SMI） │ │ GPNV/SMBIOS 事件日志 : 存到 Flash NV 区 │ │ 健康状态管理 : 更新 BMC 侧 Redfish 健康状态 │ └──────────────────────────────────────────────────────────────────┘ ┌── OEM / 客户定制层 ──────────────────────────────────────────────┐ │ 阈值策略、SEL 记录格式、丝印/定位表、Setup 菜单、机型差异 │ │ （多机型单镜像靠构建期文件覆盖机制） │ └──────────────────────────────────────────────────────────────────┘流程框架# PEI 阶段# 错误日志 PEIM → 建错误日志 HOB（错误日志 HOB GUID）">
   <meta itemprop="datePublished" content="2026-09-22T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-09-22T00:00:00+00:00">
-  <meta itemprop="wordCount" content="652">
+  <meta itemprop="wordCount" content="634">
 
 <title>RAS 架构与流程总览：分层、启动期与运行期链路 | 大象的blog</title>
 <link rel="icon" href="/favicon.png" >
 <link rel="manifest" href="/manifest.json">
-<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/ras/arch/">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/ras/ras/">
 <link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
 
 
   <script defer src="/fuse.min.js"></script>
-  <script defer src="/en.search.min.a9b042a89c8aca52e7f9b1374ae9f9fc3a1a52d2f43591e30abc221d7b126af8.js" integrity="sha256-qbBCqJyKylLn&#43;bE3Sun5/DoaUtL0NZHjCrwiHXsSavg=" crossorigin="anonymous"></script>
+  <script defer src="/en.search.min.39ca81007c0aa68ef2a804c9277b6a2f647999ef6d598034f9017f75de315f18.js" integrity="sha256-OcqBAHwKpo7yqATJJ3tqL2R5me9tWYA0&#43;QF/dd4xXxg=" crossorigin="anonymous"></script>
 
 
 
@@ -168,7 +168,6 @@ https://github.com/alex-shpak/hugo-book
         <li><a href="#einj">EINJ</a></li>
       </ul>
     </li>
-    <li><a href="#相关阅读">相关阅读</a></li>
   </ul>
 </nav>
 
@@ -354,14 +353,6 @@ FCH SMM 总分发器（根 handler，唯一入口）
 </blockquote><ul>
 <li>用于注错测试。</li>
 </ul>
-<h1 id="相关阅读">相关阅读<a class="anchor" href="#%e7%9b%b8%e5%85%b3%e9%98%85%e8%af%bb">#</a></h1>
-<ul>
-<li><a href="/posts/uefi/ras/apei/">RAS 模块总结：错误源、APEI 表与通知路径</a></li>
-<li><a href="/posts/uefi/ras/cper/">CPER 与 APEI 结构：字段级说明</a></li>
-<li><a href="/posts/uefi/ras/smm/">RAS 与 SMM：错误记录在固件侧的处理与交付</a></li>
-<li><a href="/posts/uefi/ras/sel/">错误记录到 BMC：CPER 与 IPMI SEL 的映射</a></li>
-<li><a href="/posts/uefi/ras/threshold/">可纠正错误的阈值与限流：工程做法</a></li>
-</ul>
 </div>
 </article>
  
@@ -374,11 +365,6 @@ FCH SMM 总分发器（根 handler，唯一入口）
   
   </div>
   <div>
-  
-    <a href="/posts/uefi/ras/cper/" class="flex align-center">
-      <span>CPER 与 APEI 结构：字段级说明</span>
-      <img src="/icons/forward.svg" class="book-icon" alt="Forward" />
-    </a>
   
   </div>
 </div>
@@ -443,7 +429,6 @@ FCH SMM 总分发器（根 handler，唯一入口）
         <li><a href="#einj">EINJ</a></li>
       </ul>
     </li>
-    <li><a href="#相关阅读">相关阅读</a></li>
   </ul>
 </nav>
 

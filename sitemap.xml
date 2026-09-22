@@ -5,7 +5,7 @@
     <loc>https://wuweiroot.github.io/posts/</loc>
     <lastmod>2026-09-22T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/arch/</loc>
+    <loc>https://wuweiroot.github.io/posts/uefi/ras/ras/</loc>
     <lastmod>2026-09-22T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wuweiroot.github.io/posts/uefi/</loc>
@@ -29,22 +29,7 @@
     <loc>https://wuweiroot.github.io/posts/uefi/dxe/handle/</loc>
     <lastmod>2026-09-17T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/cper/</loc>
-    <lastmod>2026-09-16T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://wuweiroot.github.io/posts/uefi/ras/</loc>
-    <lastmod>2026-09-16T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/smm/</loc>
-    <lastmod>2026-09-16T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/apei/</loc>
-    <lastmod>2026-09-16T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/threshold/</loc>
-    <lastmod>2026-09-16T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://wuweiroot.github.io/posts/uefi/ras/sel/</loc>
     <lastmod>2026-09-16T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://wuweiroot.github.io/posts/c%E8%AF%AD%E8%A8%80/c-%E8%AF%AD%E8%A8%80/</loc>
