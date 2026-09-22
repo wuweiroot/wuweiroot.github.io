@@ -242,6 +242,28 @@ https://github.com/alex-shpak/hugo-book
   </main>
 
   
+<script>
+(function () {
+  var combo = "ctrl+shift+h";
+  var target = "/h7k2p/";
+  var parts = combo.toLowerCase().split('+');
+  var last = parts[parts.length - 1];
+  var needCtrl = parts.indexOf('ctrl') > -1;
+  var needShift = parts.indexOf('shift') > -1;
+  var needAlt = parts.indexOf('alt') > -1;
+  function isField(el) {
+    return el && /^(input|textarea|select)$/i.test(el.tagName || '');
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey !== needCtrl || e.shiftKey !== needShift || e.altKey !== needAlt) return;
+    if ((e.key || '').toLowerCase() !== last) return;
+    if (!needCtrl && !needAlt && isField(e.target)) return;
+    e.preventDefault();
+    window.location.href = target;
+  });
+})();
+</script>
+
 </body>
 </html>
 
