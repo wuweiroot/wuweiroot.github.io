@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head>
+  <!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="RAS# Reliability, Availability, Serviceability（可靠性、可用性、可维护性）。 注意# IBV封装层上报的sel日志是压缩后的信息，OEM定制的诊断信息是全量内容。
+开 FaultDiag 后启动期 MCA-UC/Deferred、PMIC、CXL 不再进 SEL，而运行期 SMM MCA 没有诊断通道，BERT 不受影响
+AMD平台漏斗限制smi中断触发次数，管的是 SMM（固件） 的进出频率。目的是保 CPU 性能。
+OEM漏斗限制ce上报次数，管的是 GHES/BMC（外部系统） 的接收频率。目的是保运维系统。
+代码架构# SOC# 硅片能力层 AgesaModulePkg AGESA 接口 AgesaPkg 硅片配置 AmdCbsPkg 平台框架 AmdCpmPkg IBV# 封装上报 AmiRasWrapperPkg OEM# ODM定制 EC 上报阈值定制 BMC 上报定制，BMC诊断模式 RAS 架构# ┌── AGESA 层（AMD 提供的底层 RAS 服务）────────────────────────────┐│ AmdRasRsDxe : 生成 RAS 策略(AMD_RAS_POLICY)，采集 DIMM/CPU/MCA bank 映射 ││ AmdRasRsServiceDxe : DXE 服务协议（APEI 记录追加原语） ││ AmdRasRsServiceSmm : SMM 服务（MCA 快照/阈值/清除、PFEH、DRAM CE 计数、FruText）││ ErrorLog 三模块 : PEI 建错误日志 HOB → DXE 解析 → POST 显示 │└──────────────────────────────────────────────────────────────┘┌── AMD CPM 平台层（错误处理主体）───────────────────────────────┐│ Pei : 建 RAS Info HOB（eDPC 状态等） ││ Dxe : 装 APEI 协议；生成 BERT / HEST / EINJ；启动期错误扫描(ErrorCheck/*) ││ Smm : 注册并分发 SMI；解析错误→组 CPER→触发 NMI/SCI；EDR/热插拔/PPR 交互 ││ Asl : 独立 SSDT(CPMRAS) &#43; _OSC &#43; APEI Error Device(PNP0C33) &#43; SMI 门铃 │└──────────────────────────────────────────────────────────────┘┌── AMI 封装层 ─────────────────────────────────────────────────┐│ AmiOemRasDxe/Smm : 用 11 项回调表把 AMD 错误回调转成 AMI 上报流程 ││ Whea(DXE&#43;SMM) : 真正提供 ERST（ACPI 表 &#43; SPI Flash 持久区 &#43; SW SMI） ││ GpnvErrorLogging : GPNV/SMBIOS 事件日志（存到 Flash NV 区） ││ GenoaHealthMgmt : 更新 BMC Redfish 健康状态 │└──────────────────────────────────────────────────────────────┘┌── OEM/客户定制层 ─────────────────────────────────────────────┐│ 阈值策略、SEL 记录格式、丝印/定位表、Setup 菜单、机型差异（OVERRIDE 机制） │└──────────────────────────────────────────────────────────────┘RAS流程框架# PEI# AmdErrorLogPei → 建错误日志 HOB（gErrorLogHobGuid）
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://wuweiroot.github.io/posts/uefi/ras/ras-raw/">
+  <meta property="og:site_name" content="大象的blog">
+  <meta property="og:title" content="RAS 笔记（原稿）">
+  <meta property="og:description" content="RAS# Reliability, Availability, Serviceability（可靠性、可用性、可维护性）。 注意# IBV封装层上报的sel日志是压缩后的信息，OEM定制的诊断信息是全量内容。
+开 FaultDiag 后启动期 MCA-UC/Deferred、PMIC、CXL 不再进 SEL，而运行期 SMM MCA 没有诊断通道，BERT 不受影响
+AMD平台漏斗限制smi中断触发次数，管的是 SMM（固件） 的进出频率。目的是保 CPU 性能。
+OEM漏斗限制ce上报次数，管的是 GHES/BMC（外部系统） 的接收频率。目的是保运维系统。
+代码架构# SOC# 硅片能力层 AgesaModulePkg AGESA 接口 AgesaPkg 硅片配置 AmdCbsPkg 平台框架 AmdCpmPkg IBV# 封装上报 AmiRasWrapperPkg OEM# ODM定制 EC 上报阈值定制 BMC 上报定制，BMC诊断模式 RAS 架构# ┌── AGESA 层（AMD 提供的底层 RAS 服务）────────────────────────────┐│ AmdRasRsDxe : 生成 RAS 策略(AMD_RAS_POLICY)，采集 DIMM/CPU/MCA bank 映射 ││ AmdRasRsServiceDxe : DXE 服务协议（APEI 记录追加原语） ││ AmdRasRsServiceSmm : SMM 服务（MCA 快照/阈值/清除、PFEH、DRAM CE 计数、FruText）││ ErrorLog 三模块 : PEI 建错误日志 HOB → DXE 解析 → POST 显示 │└──────────────────────────────────────────────────────────────┘┌── AMD CPM 平台层（错误处理主体）───────────────────────────────┐│ Pei : 建 RAS Info HOB（eDPC 状态等） ││ Dxe : 装 APEI 协议；生成 BERT / HEST / EINJ；启动期错误扫描(ErrorCheck/*) ││ Smm : 注册并分发 SMI；解析错误→组 CPER→触发 NMI/SCI；EDR/热插拔/PPR 交互 ││ Asl : 独立 SSDT(CPMRAS) &#43; _OSC &#43; APEI Error Device(PNP0C33) &#43; SMI 门铃 │└──────────────────────────────────────────────────────────────┘┌── AMI 封装层 ─────────────────────────────────────────────────┐│ AmiOemRasDxe/Smm : 用 11 项回调表把 AMD 错误回调转成 AMI 上报流程 ││ Whea(DXE&#43;SMM) : 真正提供 ERST（ACPI 表 &#43; SPI Flash 持久区 &#43; SW SMI） ││ GpnvErrorLogging : GPNV/SMBIOS 事件日志（存到 Flash NV 区） ││ GenoaHealthMgmt : 更新 BMC Redfish 健康状态 │└──────────────────────────────────────────────────────────────┘┌── OEM/客户定制层 ─────────────────────────────────────────────┐│ 阈值策略、SEL 记录格式、丝印/定位表、Setup 菜单、机型差异（OVERRIDE 机制） │└──────────────────────────────────────────────────────────────┘RAS流程框架# PEI# AmdErrorLogPei → 建错误日志 HOB（gErrorLogHobGuid）">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-09-22T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-09-22T00:00:00+00:00">
+
+
+  <meta itemprop="name" content="RAS 笔记（原稿）">
+  <meta itemprop="description" content="RAS# Reliability, Availability, Serviceability（可靠性、可用性、可维护性）。 注意# IBV封装层上报的sel日志是压缩后的信息，OEM定制的诊断信息是全量内容。
+开 FaultDiag 后启动期 MCA-UC/Deferred、PMIC、CXL 不再进 SEL，而运行期 SMM MCA 没有诊断通道，BERT 不受影响
+AMD平台漏斗限制smi中断触发次数，管的是 SMM（固件） 的进出频率。目的是保 CPU 性能。
+OEM漏斗限制ce上报次数，管的是 GHES/BMC（外部系统） 的接收频率。目的是保运维系统。
+代码架构# SOC# 硅片能力层 AgesaModulePkg AGESA 接口 AgesaPkg 硅片配置 AmdCbsPkg 平台框架 AmdCpmPkg IBV# 封装上报 AmiRasWrapperPkg OEM# ODM定制 EC 上报阈值定制 BMC 上报定制，BMC诊断模式 RAS 架构# ┌── AGESA 层（AMD 提供的底层 RAS 服务）────────────────────────────┐│ AmdRasRsDxe : 生成 RAS 策略(AMD_RAS_POLICY)，采集 DIMM/CPU/MCA bank 映射 ││ AmdRasRsServiceDxe : DXE 服务协议（APEI 记录追加原语） ││ AmdRasRsServiceSmm : SMM 服务（MCA 快照/阈值/清除、PFEH、DRAM CE 计数、FruText）││ ErrorLog 三模块 : PEI 建错误日志 HOB → DXE 解析 → POST 显示 │└──────────────────────────────────────────────────────────────┘┌── AMD CPM 平台层（错误处理主体）───────────────────────────────┐│ Pei : 建 RAS Info HOB（eDPC 状态等） ││ Dxe : 装 APEI 协议；生成 BERT / HEST / EINJ；启动期错误扫描(ErrorCheck/*) ││ Smm : 注册并分发 SMI；解析错误→组 CPER→触发 NMI/SCI；EDR/热插拔/PPR 交互 ││ Asl : 独立 SSDT(CPMRAS) &#43; _OSC &#43; APEI Error Device(PNP0C33) &#43; SMI 门铃 │└──────────────────────────────────────────────────────────────┘┌── AMI 封装层 ─────────────────────────────────────────────────┐│ AmiOemRasDxe/Smm : 用 11 项回调表把 AMD 错误回调转成 AMI 上报流程 ││ Whea(DXE&#43;SMM) : 真正提供 ERST（ACPI 表 &#43; SPI Flash 持久区 &#43; SW SMI） ││ GpnvErrorLogging : GPNV/SMBIOS 事件日志（存到 Flash NV 区） ││ GenoaHealthMgmt : 更新 BMC Redfish 健康状态 │└──────────────────────────────────────────────────────────────┘┌── OEM/客户定制层 ─────────────────────────────────────────────┐│ 阈值策略、SEL 记录格式、丝印/定位表、Setup 菜单、机型差异（OVERRIDE 机制） │└──────────────────────────────────────────────────────────────┘RAS流程框架# PEI# AmdErrorLogPei → 建错误日志 HOB（gErrorLogHobGuid）">
+  <meta itemprop="datePublished" content="2026-09-22T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-09-22T00:00:00+00:00">
+  <meta itemprop="wordCount" content="547">
+
+<title>RAS 笔记（原稿） | 大象的blog</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://wuweiroot.github.io/posts/uefi/ras/ras-raw/">
+<link rel="stylesheet" href="/book.min.cc2c524ed250aac81b23d1f4af87344917b325208841feca0968fe450f570575.css" integrity="sha256-zCxSTtJQqsgbI9H0r4c0SRezJSCIQf7KCWj&#43;RQ9XBXU=" crossorigin="anonymous">
+
+
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/en.search.min.c58dbfe7a535c2e706dfcff5413b3d0e304ece49d45a8ecd6c16b1a933bd5880.js" integrity="sha256-xY2/56U1wucG38/1QTs9DjBOzknUWo7NbBaxqTO9WIA=" crossorigin="anonymous"></script>
+
+
+
+  
+ <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body dir="ltr" class="book-kind-page book-type-posts">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    
+<aside class="book-menu">
+  <div class="book-menu-content">
+    
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>大象的blog</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input id="book-search-input" type="text" 
+    placeholder="Search"
+    aria-label="Search"
+    maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+
+  </div>
+</aside>
+ 
+
+    <div class="book-page">
+      <header class="book-header hidden">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/icons/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>RAS 笔记（原稿）</h3>
+
+  <label for="toc-control">
+    
+    <img src="/icons/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#ras">RAS</a></li>
+    <li><a href="#注意">注意</a></li>
+    <li><a href="#代码架构">代码架构</a>
+      <ul>
+        <li><a href="#soc">SOC</a></li>
+        <li><a href="#ibv">IBV</a></li>
+        <li><a href="#oem">OEM</a></li>
+        <li><a href="#ras-架构">RAS 架构</a></li>
+      </ul>
+    </li>
+    <li><a href="#ras流程框架">RAS流程框架</a>
+      <ul>
+        <li><a href="#pei">PEI</a></li>
+        <li><a href="#启动时">启动时</a></li>
+        <li><a href="#运行时">运行时</a></li>
+      </ul>
+    </li>
+    <li><a href="#漏斗算法">漏斗算法</a>
+      <ul>
+        <li><a href="#计数器和泄露桶的区别">计数器和泄露桶的区别</a></li>
+      </ul>
+    </li>
+    <li><a href="#apei">APEI</a>
+      <ul>
+        <li><a href="#bert">BERT</a></li>
+        <li><a href="#hest">HEST</a></li>
+        <li><a href="#erst">ERST</a></li>
+        <li><a href="#einj">EINJ</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+<article class="markdown book-post">
+  <h1>RAS 笔记（原稿）</h1>
+  
+  <div class="flex align-center text-small book-post-date">
+    <img src="/icons/calendar.svg" class="book-icon" alt="Calendar" />
+    <span>September 22, 2026</span>
+  </div>
+
+
+
+  
+
+  
+
+
+  <div class="book-post-content markdown-inner"><h1 id="ras">RAS<a class="anchor" href="#ras">#</a></h1>
+<ul>
+<li>Reliability, Availability, Serviceability（可靠性、可用性、可维护性）。</li>
+</ul>
+<h1 id="注意">注意<a class="anchor" href="#%e6%b3%a8%e6%84%8f">#</a></h1>
+<ul>
+<li>
+<p>IBV封装层上报的sel日志是压缩后的信息，OEM定制的诊断信息是全量内容。</p>
+</li>
+<li>
+<p>开 FaultDiag 后启动期 MCA-UC/Deferred、PMIC、CXL 不再进 SEL，而运行期 SMM MCA 没有诊断通道，BERT 不受影响</p>
+</li>
+<li>
+<p>AMD平台漏斗限制smi中断触发次数，管的是 SMM（固件） 的进出频率。目的是保 CPU 性能。</p>
+</li>
+<li>
+<p>OEM漏斗限制ce上报次数，管的是 GHES/BMC（外部系统） 的接收频率。目的是保运维系统。</p>
+</li>
+</ul>
+<h1 id="代码架构">代码架构<a class="anchor" href="#%e4%bb%a3%e7%a0%81%e6%9e%b6%e6%9e%84">#</a></h1>
+<h2 id="soc">SOC<a class="anchor" href="#soc">#</a></h2>
+<ul>
+<li>硅片能力层   AgesaModulePkg</li>
+<li>AGESA 接口   AgesaPkg</li>
+<li>硅片配置     AmdCbsPkg</li>
+<li>平台框架     AmdCpmPkg</li>
+</ul>
+<h2 id="ibv">IBV<a class="anchor" href="#ibv">#</a></h2>
+<ul>
+<li>封装上报  AmiRasWrapperPkg</li>
+</ul>
+<h2 id="oem">OEM<a class="anchor" href="#oem">#</a></h2>
+<ul>
+<li>ODM定制
+<ul>
+<li>EC 上报阈值定制</li>
+<li>BMC 上报定制，BMC诊断模式</li>
+</ul>
+</li>
+</ul>
+<h2 id="ras-架构">RAS 架构<a class="anchor" href="#ras-%e6%9e%b6%e6%9e%84">#</a></h2>
+<pre tabindex="0"><code>┌── AGESA 层（AMD 提供的底层 RAS 服务）────────────────────────────┐
+│ AmdRasRsDxe        : 生成 RAS 策略(AMD_RAS_POLICY)，采集 DIMM/CPU/MCA bank 映射 │
+│ AmdRasRsServiceDxe : DXE 服务协议（APEI 记录追加原语）                        │
+│ AmdRasRsServiceSmm : SMM 服务（MCA 快照/阈值/清除、PFEH、DRAM CE 计数、FruText）│
+│ ErrorLog 三模块     : PEI 建错误日志 HOB → DXE 解析 → POST 显示               │
+└──────────────────────────────────────────────────────────────┘
+┌── AMD CPM 平台层（错误处理主体）───────────────────────────────┐
+│ Pei : 建 RAS Info HOB（eDPC 状态等）                                        │
+│ Dxe : 装 APEI 协议；生成 BERT / HEST / EINJ；启动期错误扫描(ErrorCheck/*)     │
+│ Smm : 注册并分发 SMI；解析错误→组 CPER→触发 NMI/SCI；EDR/热插拔/PPR 交互      │
+│ Asl : 独立 SSDT(CPMRAS) + _OSC + APEI Error Device(PNP0C33) + SMI 门铃      │
+└──────────────────────────────────────────────────────────────┘
+┌── AMI 封装层 ─────────────────────────────────────────────────┐
+│ AmiOemRasDxe/Smm : 用 11 项回调表把 AMD 错误回调转成 AMI 上报流程           │
+│ Whea(DXE+SMM)    : 真正提供 ERST（ACPI 表 + SPI Flash 持久区 + SW SMI）     │
+│ GpnvErrorLogging : GPNV/SMBIOS 事件日志（存到 Flash NV 区）                 │
+│ GenoaHealthMgmt  : 更新 BMC Redfish 健康状态                               │
+└──────────────────────────────────────────────────────────────┘
+┌── OEM/客户定制层 ─────────────────────────────────────────────┐
+│ 阈值策略、SEL 记录格式、丝印/定位表、Setup 菜单、机型差异（OVERRIDE 机制）    │
+└──────────────────────────────────────────────────────────────┘</code></pre><h1 id="ras流程框架">RAS流程框架<a class="anchor" href="#ras%e6%b5%81%e7%a8%8b%e6%a1%86%e6%9e%b6">#</a></h1>
+<h2 id="pei">PEI<a class="anchor" href="#pei">#</a></h2>
+<p>AmdErrorLogPei                → 建错误日志 HOB（gErrorLogHobGuid）</p>
+<ul>
+<li>
+<p>从APOB中拿到错误信息存储到 HOB  gErrorLogHobGuid</p>
+<p>ABL 事件(APOB) ──┐
+CCD BIST/其他 PEIM ─┴→ [gErrorLogHobGuid 的循环缓冲]  ←── gAmdErrorLogPpiGuid 写
+│
+┌───────────────────┼────────────────────┬──────────────────┐
+▼                   ▼                    ▼                  ▼
+Display 驱动        CpmApobErrChk(RAS)     Mem/PSP Dxe      服务协议暴露
+POST 打印           ├─ OEM 回调 → BMC     自用              给后续驱动
+└─ AddBootErrorRecordEntry → BERT → OS(APEI)</p>
+</li>
+<li>
+<p>即：屏幕（人）+ BERT（OS/APEI）+ BMC（OEM 回调），其中 BERT 这条是 RAS 的正规档案通道。</p>
+</li>
+</ul>
+<p>AmdPlatformRasRsPei           → 造 AMD_CPM_RAS_INFO_HOB（收 eDPC 状态）</p>
+<ul>
+<li>只用于打印</li>
+</ul>
+<h2 id="启动时">启动时<a class="anchor" href="#%e5%90%af%e5%8a%a8%e6%97%b6">#</a></h2>
+<pre tabindex="0"><code>
+本次开机已发生的错误（MCA / ABL 事件日志 / eDPC 状态 / PMIC / CXL / PCIe AER / SMN）
+        │  事件触发：PciIo Protocol notify ×2、ReadyToBoot ×2
+        ▼
+┌──────────────────────────────────────────────────────────────┐
+│ AmdPlatformRasRsDxe（CPM，DXE 主链）                           │
+│  CpmMcaErrChk.c         启动期 MCA 扫描 / GHES 映射表           │
+│  CpmApobErrChk.c        ABL 事件日志 / 内存测试 / PMIC          │
+│  CpmNbioErrChk.c        NBIF 错误检测 + 使能配置                │
+│  CpmPcieAer.c           PCIe 端口检测 / AER 使能 / eDPC 解析    │
+│  CpmCxlErrChk.c         CXL 端口与错误检测 / 上报配置           │
+│  CpmSmnErrChk.c         SMN 链路错误                           │
+│  AmdApeiBert/Hest/Einj.c    ACPI 表安装                        │
+│  CpmAcpiHelper.c        SSDT 装载 / DSDT 更新                  │
+└───────────────┬──────────────────────────────────────────────┘
+                │ 需要地址翻译、追加错误记录时
+                ▼
+        AmdRasRsServiceDxe（AGESA，7 个服务函数）
+        + AMD_RAS_POLICY（DIMM / CPU / MCA bank 映射）
+                │
+      ┌─────────┴──────────────┬────────────────────┬──────────────┐
+      ▼                        ▼                    ▼              ▼
+写 ACPI：BERT 的            写 ACPI：HEST         gAmdCpmRasOem   UpdateDsdt
+Boot Error Region           回填 GHES 块地址       ProtocolGuid    AML 占位地址
+（错误记录本体，累积）        + GHES_ASSIST         → AmiOemRasDxe   （BIOS↔SMM 邮箱）
+                                                  → SEL → BMC
+                                                  （诊断通道优先）</code></pre><h2 id="运行时">运行时<a class="anchor" href="#%e8%bf%90%e8%a1%8c%e6%97%b6">#</a></h2>
+<pre tabindex="0"><code>硬件错误（MCA / AER / CXL / DF / SyncFlood / PMIO）
+        │  SMI  （FCH_SMI_REG84 bit21 等）
+        ▼
+FchSmmDispatcher（根 handler，唯一入口）
+        └─ FchSmmApuRasDispatcher（子分发）
+                ▼  按注册类型
+┌──────────────────────────────────────────────────────────────┐
+│ AmdPlatformRasRsSmm（CPM，主链，AmdPlatformRasRsSmm.c:入口）│
+│  MceSwSmi.c           MCE SW SMI / 周期 SMI / 阈值 / PPR       │
+│  PciLegacyRasSmi.c → PciRasSmi.c    PCIe AER / Legacy APU RAS  │
+│  CxlRasSmi.c          CXL RAS SMI                              │
+│  EdrSwSmi.c           EDR SW SMI                               │
+│  EinjSwSmi.c          EINJ SW SMI（stub）                      │
+│  RasSmiErrHdlrHelper.c  Leaky Bucket（防 SMI 风暴，进轮询模式）  │
+└───────────────┬──────────────────────────────────────────────┘
+                │ 需要读写 MCA/UMC/寄存器时
+                ▼
+        AmdRasRsServiceSmm（AGESA，16 个服务函数）
+                │
+      ┌─────────┴──────────────┬────────────────────┐
+      ▼                        ▼                    ▼
+ 写 ACPI NVS 的 CPER      gAmdCpmRasOemSmmProtocolGuid   SmmWhea(ERST)
+ + RasTriggerNmi/Sci      → AmiOemRasSmm → SEL → BMC    持久化
+ → ASL Notify → OS(GHES)</code></pre><h1 id="漏斗算法">漏斗算法<a class="anchor" href="#%e6%bc%8f%e6%96%97%e7%ae%97%e6%b3%95">#</a></h1>
+<blockquote class='book-hint '>
+<p>经典的泄漏桶算法实现，用于限制单位时间内的 SMI 频率</p>
+</blockquote><blockquote class='book-hint '>
+<p>通过单位时间内泄露条数，和中断发生间隔时间。计算出这段时间应该泄露的条数。再用累计条数-漏出的条数得到存在的条数和阈值进行比较。得到结果1</p>
+</blockquote><ul>
+<li>阈值达到进入轮询模式</li>
+<li>注册轮询模式smi,遍历所有MCA寄存器找到错误</li>
+</ul>
+<h2 id="计数器和泄露桶的区别">计数器和泄露桶的区别<a class="anchor" href="#%e8%ae%a1%e6%95%b0%e5%99%a8%e5%92%8c%e6%b3%84%e9%9c%b2%e6%a1%b6%e7%9a%84%e5%8c%ba%e5%88%ab">#</a></h2>
+<blockquote class='book-hint '>
+<p>因为直接用“单位时间内的计数器”有两个致命缺陷：边界效应和无法平滑突发。泄漏桶的本质，就是用一种O(1) 的轻量级算法，去近似实现一个“滑动窗口”的效果。</p>
+</blockquote><h1 id="apei">APEI<a class="anchor" href="#apei">#</a></h1>
+<h2 id="bert">BERT<a class="anchor" href="#bert">#</a></h2>
+<blockquote class='book-hint '>
+<p>Boot Error Record Table</p>
+</blockquote><ul>
+<li>记录启动时错误</li>
+</ul>
+<h2 id="hest">HEST<a class="anchor" href="#hest">#</a></h2>
+<blockquote class='book-hint '>
+<p>Hardware Error Source Table</p>
+</blockquote><ul>
+<li>不存错误记录；描述&quot;有哪些错误源、如何通知/使能&quot;，并给出各错误状态块的地址</li>
+<li>运行期错误记录写在它指向的 GHES 错误状态块（CPER）里，由 SMM 填充</li>
+</ul>
+<h2 id="erst">ERST<a class="anchor" href="#erst">#</a></h2>
+<blockquote class='book-hint '>
+<p>Error Record Serialization Table</p>
+</blockquote><ul>
+<li>定义 OS 如何把硬件错误记录持久化保存到非易失介质，以及重启后如何把记录读回来</li>
+</ul>
+<h2 id="einj">EINJ<a class="anchor" href="#einj">#</a></h2>
+<blockquote class='book-hint '>
+<p>Error Injection Table</p>
+</blockquote><ul>
+<li>用于注错测试</li>
+</ul>
+</div>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+  <div>
+  
+  </div>
+  <div>
+  
+  </div>
+</div>
+ 
+        
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+        
+        
+  
+ 
+        
+  
+  
+    <script>(function(){document.querySelectorAll("pre:has(code)").forEach(e=>{e.addEventListener("click",e.focus),e.addEventListener("copy",function(t){if(t.preventDefault(),navigator.clipboard){const t=window.getSelection().toString()||e.textContent;navigator.clipboard.writeText(t)}})})})()</script>
+  
+
+      </footer>
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  
+  <aside class="book-toc">
+    <div class="book-toc-content">
+      
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#ras">RAS</a></li>
+    <li><a href="#注意">注意</a></li>
+    <li><a href="#代码架构">代码架构</a>
+      <ul>
+        <li><a href="#soc">SOC</a></li>
+        <li><a href="#ibv">IBV</a></li>
+        <li><a href="#oem">OEM</a></li>
+        <li><a href="#ras-架构">RAS 架构</a></li>
+      </ul>
+    </li>
+    <li><a href="#ras流程框架">RAS流程框架</a>
+      <ul>
+        <li><a href="#pei">PEI</a></li>
+        <li><a href="#启动时">启动时</a></li>
+        <li><a href="#运行时">运行时</a></li>
+      </ul>
+    </li>
+    <li><a href="#漏斗算法">漏斗算法</a>
+      <ul>
+        <li><a href="#计数器和泄露桶的区别">计数器和泄露桶的区别</a></li>
+      </ul>
+    </li>
+    <li><a href="#apei">APEI</a>
+      <ul>
+        <li><a href="#bert">BERT</a></li>
+        <li><a href="#hest">HEST</a></li>
+        <li><a href="#erst">ERST</a></li>
+        <li><a href="#einj">EINJ</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+    </div>
+  </aside>
+  
+ 
+  </main>
+
+  
+<script>
+(function () {
+  var combo = "ctrl+shift+h";
+  var target = "/h7k2p/";
+  var parts = combo.toLowerCase().split('+');
+  var last = parts[parts.length - 1];
+  var needCtrl = parts.indexOf('ctrl') > -1;
+  var needShift = parts.indexOf('shift') > -1;
+  var needAlt = parts.indexOf('alt') > -1;
+  function isField(el) {
+    return el && /^(input|textarea|select)$/i.test(el.tagName || '');
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey !== needCtrl || e.shiftKey !== needShift || e.altKey !== needAlt) return;
+    if ((e.key || '').toLowerCase() !== last) return;
+    if (!needCtrl && !needAlt && isField(e.target)) return;
+    e.preventDefault();
+    window.location.href = target;
+  });
+})();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
